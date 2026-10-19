@@ -10,12 +10,20 @@ export default function Home() {
         Fyll i rubrik, text och färg i formuläret, klicka på Spara &amp; Publicera
         och få en publik länk direkt.
       </p>
-      <Link
-        href="/dashboard"
-        className="mt-10 rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700"
-      >
-        Kom igång
-      </Link>
+      <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+        <Link
+          href="/sign-up"
+          className="rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700"
+        >
+          Skapa konto
+        </Link>
+        <Link
+          href="/sign-in"
+          className="rounded-lg px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+        >
+          Logga in
+        </Link>
+      </div>
     </main>
   );
 }

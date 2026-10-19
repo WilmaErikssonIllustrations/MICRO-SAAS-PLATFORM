@@ -1,7 +1,7 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { type FieldErrors, validateWebsiteForm } from "@/lib/validation";
 import { getUserWebsite, websiteTag } from "@/lib/websites";
@@ -15,7 +15,7 @@ export async function saveWebsite(
   _prevState: SaveWebsiteState,
   formData: FormData,
 ): Promise<SaveWebsiteState> {
-  const user = await getCurrentUser();
+  const user = await requireUser();
 
   const result = validateWebsiteForm(formData);
   if (!result.success) {
