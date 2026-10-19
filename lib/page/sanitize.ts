@@ -2,6 +2,7 @@ import "server-only";
 import type { Field, Fields } from "@puckeditor/core";
 import sanitizeHtml from "sanitize-html";
 import { type PageData, pageConfig } from "@/lib/page/config";
+import { isStoredImageUrl } from "@/lib/storage";
 
 // Page data arrives from the browser, so it is untrusted: rebuild it from
 // the config, keeping only known components and fields, and clean every
@@ -59,6 +60,7 @@ function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: 
       return sanitizeContent(value, budget);
     case "custom":
       if (kind === "color") return typeof value === "string" && HEX_COLOR.test(value) ? value : fallback;
+      if (kind === "image") return typeof value === "string" && isStoredImageUrl(value) ? value : "";
       return fallback;
     default:
       // Field types this config doesn't use are dropped.

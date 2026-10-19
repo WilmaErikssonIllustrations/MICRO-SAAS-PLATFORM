@@ -45,6 +45,7 @@ const heroBackground = {
 } as const;
 
 export type HeroProps = {
+  image: string;
   title: string;
   subtitle: string;
   ctaText: string;
@@ -53,9 +54,16 @@ export type HeroProps = {
   align: Align;
 };
 
-export function Hero({ title, subtitle, ctaText, ctaLink, background, align }: HeroProps) {
+export function Hero({ image, title, subtitle, ctaText, ctaLink, background, align }: HeroProps) {
   return (
-    <section className={heroBackground[background]}>
+    <section className={`relative isolate ${image ? "bg-zinc-900 text-white" : heroBackground[background]}`}>
+      {image && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
+          <img src={image} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" />
+          <div className="absolute inset-0 -z-10 bg-black/50" />
+        </>
+      )}
       <div
         className={`mx-auto flex min-h-[60vh] max-w-5xl flex-col justify-center px-6 py-24 ${alignClass[align]}`}
       >
@@ -66,7 +74,10 @@ export function Hero({ title, subtitle, ctaText, ctaLink, background, align }: H
           <p className="mt-6 max-w-2xl text-lg text-pretty opacity-90 sm:text-xl">{subtitle}</p>
         )}
         {ctaText && (
-          <ButtonLink href={ctaLink || "#"} variant={background === "theme" ? "inverted" : "filled"}>
+          <ButtonLink
+            href={ctaLink || "#"}
+            variant={background === "theme" && !image ? "inverted" : "filled"}
+          >
             {ctaText}
           </ButtonLink>
         )}
@@ -167,6 +178,33 @@ export function Columns({
       <div className="min-w-0">{left}</div>
       <div className="min-w-0">{right}</div>
     </div>
+  );
+}
+
+const imageWidth = { narrow: "max-w-2xl", wide: "max-w-5xl", full: "max-w-none" } as const;
+
+export type ImageProps = { src: string; alt: string; width: keyof typeof imageWidth };
+
+export function ImageBlock({ src, alt, width }: ImageProps) {
+  if (!src) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-6">
+        <div className="flex h-48 items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 text-sm text-zinc-500">
+          Välj en bild i panelen till höger
+        </div>
+      </div>
+    );
+  }
+  return (
+    <figure className={`mx-auto py-6 ${width === "full" ? "" : "px-6"} ${imageWidth[width]}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className={`h-auto w-full object-cover ${width === "full" ? "" : "rounded-xl"}`}
+      />
+    </figure>
   );
 }
 

@@ -1,4 +1,4 @@
-import type { Config, Data, RichText, Slot } from "@puckeditor/core";
+import type { Config, CustomField, Data, RichText, Slot } from "@puckeditor/core";
 import {
   Button,
   type ButtonProps,
@@ -8,21 +8,25 @@ import {
   type HeadingProps,
   Hero,
   type HeroProps,
+  ImageBlock,
+  type ImageProps,
   SiteRoot,
   Spacer,
   type SpacerSize,
   TextBlock,
 } from "@/components/page-blocks/blocks";
 import { ColorField } from "@/components/page-blocks/color-field";
+import { ImageField } from "@/components/page-blocks/image-field";
 
 // The Puck config is shared by the editor (client) and the public page
 // (server). `metadata.kind` tells lib/page/sanitize.ts how to validate
-// fields whose Puck type alone isn't enough (links, colors).
+// fields whose Puck type alone isn't enough (links, colors, images).
 
 type Components = {
   Hero: HeroProps;
   Heading: HeadingProps;
   Text: { content: RichText };
+  Image: ImageProps;
   Button: ButtonProps;
   Columns: { ratio: ColumnsRatio; left: Slot; right: Slot };
   Spacer: { size: SpacerSize };
@@ -42,9 +46,20 @@ const alignField = {
   ],
 } as const;
 
+function imageField(label: string) {
+  return {
+    type: "custom",
+    label,
+    metadata: { kind: "image" },
+    render: ({ value, onChange, readOnly }) => (
+      <ImageField label={label} value={value ?? ""} onChange={onChange} readOnly={readOnly} />
+    ),
+  } satisfies CustomField<string>;
+}
+
 export const pageConfig: PageConfig = {
   categories: {
-    content: { title: "Innehåll", components: ["Hero", "Heading", "Text", "Button"] },
+    content: { title: "Innehåll", components: ["Hero", "Heading", "Text", "Image", "Button"] },
     layout: { title: "Layout", components: ["Columns", "Spacer"] },
   },
   root: {
@@ -70,6 +85,7 @@ export const pageConfig: PageConfig = {
     Hero: {
       label: "Hero",
       fields: {
+        image: imageField("Bakgrundsbild (valfri)"),
         title: { type: "text", label: "Rubrik" },
         subtitle: { type: "textarea", label: "Underrubrik" },
         ctaText: { type: "text", label: "Knapptext" },
@@ -86,6 +102,7 @@ export const pageConfig: PageConfig = {
         align: alignField,
       },
       defaultProps: {
+        image: "",
         title: "Välkommen!",
         subtitle: "En kort mening om vad ni gör.",
         ctaText: "Kontakta oss",
@@ -117,6 +134,24 @@ export const pageConfig: PageConfig = {
       fields: { content: { type: "richtext", label: "Text" } },
       defaultProps: { content: "<p>Skriv din text här.</p>" },
       render: ({ content }) => <TextBlock content={content} />,
+    },
+    Image: {
+      label: "Bild",
+      fields: {
+        src: imageField("Bild"),
+        alt: { type: "text", label: "Beskrivning (för skärmläsare)" },
+        width: {
+          type: "select",
+          label: "Bredd",
+          options: [
+            { label: "Smal", value: "narrow" },
+            { label: "Bred", value: "wide" },
+            { label: "Hela sidan", value: "full" },
+          ],
+        },
+      },
+      defaultProps: { src: "", alt: "", width: "wide" },
+      render: (props) => <ImageBlock {...props} />,
     },
     Button: {
       label: "Knapp",
