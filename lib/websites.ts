@@ -1,9 +1,14 @@
 import "server-only";
 import { cacheLife, cacheTag, updateTag } from "next/cache";
 import { hostTag, matchHost, suggestSubdomain, websiteHostnames } from "@/lib/domains";
+import type { Prisma } from "@/generated/prisma/client";
+import { type PageData, starterPage } from "@/lib/page/config";
 import { prisma } from "@/lib/prisma";
 
 export const websiteTag = (id: string) => `website-${id}`;
+
+/** Page data is plain JSON; this narrows it to the type Prisma expects. */
+export const pageToJson = (page: PageData) => page as unknown as Prisma.InputJsonValue;
 
 // The builder edits a single website per user: the first one they created.
 export async function getUserWebsite(userId: string) {
@@ -21,7 +26,7 @@ export async function createWebsiteForUser(user: { id: string; email: string }) 
     if (taken) continue;
 
     return prisma.website.create({
-      data: { userId: user.id, subdomain, title: "Min hemsida", themeColor: "#2563eb" },
+      data: { userId: user.id, subdomain, title: "Min hemsida", data: pageToJson(starterPage()) },
     });
   }
   throw new Error("Could not find a free subdomain");

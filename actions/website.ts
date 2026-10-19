@@ -1,48 +1,30 @@
 "use server";
 
-import { refresh } from "next/cache";
 import { requireUser } from "@/lib/current-user";
+import { sanitizePageData } from "@/lib/page/sanitize";
 import { prisma } from "@/lib/prisma";
-import { type FieldErrors, validateWebsiteForm } from "@/lib/validation";
-import { expireWebsiteCache, getOrCreateUserWebsite } from "@/lib/websites";
+import { expireWebsiteCache, getOrCreateUserWebsite, pageToJson } from "@/lib/websites";
 
-export type SaveWebsiteState =
-  | { status: "idle" }
-  | { status: "error"; message: string; errors?: FieldErrors }
-  | { status: "success"; message: string };
+export type PublishResult = { ok: boolean; message: string };
 
-export async function saveWebsite(
-  _prevState: SaveWebsiteState,
-  formData: FormData,
-): Promise<SaveWebsiteState> {
+/** Saves the page built in the editor and publishes it. */
+export async function publishPage(data: unknown): Promise<PublishResult> {
   const user = await requireUser();
-
-  const result = validateWebsiteForm(formData);
-  if (!result.success) {
-    return {
-      status: "error",
-      message: "Kontrollera de markerade fälten.",
-      errors: result.errors,
-    };
-  }
 
   try {
     // Look up the website by owner rather than trusting an id from the client.
-    const existing = await getOrCreateUserWebsite(user);
-    const website = await prisma.website.update({
-      where: { id: existing.id },
-      data: { ...result.data, published: true },
+    const website = await getOrCreateUserWebsite(user);
+    const page = sanitizePageData(data);
+
+    await prisma.website.update({
+      where: { id: website.id },
+      data: { data: pageToJson(page), title: page.root.props!.title, published: true },
     });
-
     expireWebsiteCache(website);
-    refresh();
 
-    return { status: "success", message: "Din hemsida är sparad och publicerad!" };
+    return { ok: true, message: "Publicerad!" };
   } catch (error) {
-    console.error("Failed to save website", error);
-    return {
-      status: "error",
-      message: "Något gick fel när hemsidan skulle sparas. Försök igen.",
-    };
+    console.error("Failed to publish page", error);
+    return { ok: false, message: "Kunde inte publicera. Försök igen." };
   }
 }

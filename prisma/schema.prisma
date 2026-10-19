@@ -74,16 +74,16 @@ model Website {
   subdomain    String  @unique
   customDomain String? @unique
 
-  title       String
-  subtitle    String?
-  ctaText     String?
-  ctaLink     String?
-  content     String?
-  themeColor  String   @default("#000000")
-  published   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Site name, mirrored from the page's root props for metadata and lists.
+  title     String
+  // The page built in the Puck editor (root props + blocks), stored as JSON.
+  data      Json     @default("{}")
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
