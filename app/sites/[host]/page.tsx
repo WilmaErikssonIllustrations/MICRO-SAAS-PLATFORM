@@ -4,11 +4,14 @@ import { Suspense } from "react";
 import { ContentSection } from "@/components/site/content-section";
 import { Hero } from "@/components/site/hero";
 import { SiteFooter } from "@/components/site/site-footer";
-import { getPublishedWebsite } from "@/lib/websites";
+import { getPublishedWebsiteByHost } from "@/lib/websites";
 
-export async function generateMetadata(props: PageProps<"/site/[id]">): Promise<Metadata> {
-  const { id } = await props.params;
-  const website = await getPublishedWebsite(id);
+// Reached only through proxy.ts, which rewrites tenant hostnames
+// (<subdomain>.ROOT_DOMAIN or a custom domain) to /sites/<hostname>.
+
+export async function generateMetadata(props: PageProps<"/sites/[host]">): Promise<Metadata> {
+  const { host } = await props.params;
+  const website = await getPublishedWebsiteByHost(decodeURIComponent(host));
 
   if (!website) return { title: "Sidan hittades inte" };
   return {
@@ -17,7 +20,7 @@ export async function generateMetadata(props: PageProps<"/site/[id]">): Promise<
   };
 }
 
-export default function SitePage(props: PageProps<"/site/[id]">) {
+export default function SitePage(props: PageProps<"/sites/[host]">) {
   return (
     <div className="flex flex-1 flex-col bg-white text-zinc-900">
       <Suspense fallback={<SiteSkeleton />}>
@@ -27,9 +30,9 @@ export default function SitePage(props: PageProps<"/site/[id]">) {
   );
 }
 
-async function Site({ params }: Pick<PageProps<"/site/[id]">, "params">) {
-  const { id } = await params;
-  const website = await getPublishedWebsite(id);
+async function Site({ params }: Pick<PageProps<"/sites/[host]">, "params">) {
+  const { host } = await params;
+  const website = await getPublishedWebsiteByHost(decodeURIComponent(host));
 
   if (!website) notFound();
 

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { signOut } from "@/actions/auth";
 import { requireUser } from "@/lib/current-user";
-import { getUserWebsite } from "@/lib/websites";
+import { getCustomDomainTarget, getRootDomain, subdomainUrl } from "@/lib/domains";
+import { getOrCreateUserWebsite } from "@/lib/websites";
+import { SiteSettingsForm } from "./_components/site-settings-form";
 import { WebsiteForm } from "./_components/website-form";
 
 export const metadata: Metadata = {
@@ -55,20 +57,32 @@ async function AccountMenu() {
 
 async function Builder() {
   const user = await requireUser();
-  const website = await getUserWebsite(user.id);
+  const website = await getOrCreateUserWebsite(user);
+
+  const publicUrls = [subdomainUrl(website.subdomain)];
+  if (website.customDomain) publicUrls.push(`https://${website.customDomain}`);
 
   return (
-    <WebsiteForm
-      websiteId={website?.id ?? null}
-      initialValues={{
-        title: website?.title ?? "",
-        subtitle: website?.subtitle ?? "",
-        ctaText: website?.ctaText ?? "",
-        ctaLink: website?.ctaLink ?? "",
-        content: website?.content ?? "",
-        themeColor: website?.themeColor ?? "#2563eb",
-      }}
-    />
+    <div className="space-y-8">
+      <SiteSettingsForm
+        rootDomain={getRootDomain()}
+        cnameTarget={getCustomDomainTarget()}
+        subdomain={website.subdomain}
+        customDomain={website.customDomain}
+      />
+      <WebsiteForm
+        published={website.published}
+        publicUrls={publicUrls}
+        initialValues={{
+          title: website.title,
+          subtitle: website.subtitle ?? "",
+          ctaText: website.ctaText ?? "",
+          ctaLink: website.ctaLink ?? "",
+          content: website.content ?? "",
+          themeColor: website.themeColor,
+        }}
+      />
+    </div>
   );
 }
 

@@ -1,24 +1,25 @@
 "use client";
 
-import { type FormEvent, type ReactNode, startTransition, useActionState } from "react";
+import { type FormEvent, startTransition, useActionState } from "react";
 import { type SaveWebsiteState, saveWebsite } from "@/actions/website";
 import type { WebsiteField } from "@/lib/validation";
 import { FormField, fieldProps } from "./form-field";
 import { PublishedLink } from "./published-link";
+import { Section } from "./section";
 import { ThemeColorField } from "./theme-color-field";
 
 type WebsiteFormProps = {
-  websiteId: string | null;
   initialValues: Record<WebsiteField, string>;
+  published: boolean;
+  publicUrls: string[];
 };
 
 const initialState: SaveWebsiteState = { status: "idle" };
 
-export function WebsiteForm({ websiteId, initialValues }: WebsiteFormProps) {
+export function WebsiteForm({ initialValues, published, publicUrls }: WebsiteFormProps) {
   const [state, formAction, pending] = useActionState(saveWebsite, initialState);
 
   const errors = state.status === "error" ? state.errors : undefined;
-  const publishedId = state.status === "success" ? state.websiteId : websiteId;
 
   // Submit manually instead of via <form action> so React keeps the typed
   // values instead of resetting the form after saving.
@@ -113,19 +114,8 @@ export function WebsiteForm({ websiteId, initialValues }: WebsiteFormProps) {
           )}
         </div>
 
-        {publishedId && <PublishedLink websiteId={publishedId} />}
+        {published && <PublishedLink urls={publicUrls} />}
       </div>
     </form>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <fieldset className="space-y-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-      <legend className="px-1 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-        {title}
-      </legend>
-      {children}
-    </fieldset>
   );
 }

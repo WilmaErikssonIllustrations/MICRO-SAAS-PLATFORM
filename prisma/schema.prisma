@@ -67,15 +67,20 @@ model Verification {
   @@index([identifier])
 }
 
+// Each website is a tenant, served on its own subdomain and optionally on
+// a custom domain the owner points at the platform via DNS.
 model Website {
-  id          String   @id @default(cuid())
+  id           String  @id @default(cuid())
+  subdomain    String  @unique
+  customDomain String? @unique
+
   title       String
   subtitle    String?
   ctaText     String?
   ctaLink     String?
   content     String?
   themeColor  String   @default("#000000")
-  published   Boolean  @default(true)
+  published   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   

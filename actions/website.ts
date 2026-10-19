@@ -1,15 +1,15 @@
 "use server";
 
-import { updateTag } from "next/cache";
+import { refresh } from "next/cache";
 import { requireUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { type FieldErrors, validateWebsiteForm } from "@/lib/validation";
-import { getUserWebsite, websiteTag } from "@/lib/websites";
+import { expireWebsiteCache, getOrCreateUserWebsite } from "@/lib/websites";
 
 export type SaveWebsiteState =
   | { status: "idle" }
   | { status: "error"; message: string; errors?: FieldErrors }
-  | { status: "success"; message: string; websiteId: string };
+  | { status: "success"; message: string };
 
 export async function saveWebsite(
   _prevState: SaveWebsiteState,
@@ -26,22 +26,18 @@ export async function saveWebsite(
     };
   }
 
-  const data = { ...result.data, published: true };
-
   try {
     // Look up the website by owner rather than trusting an id from the client.
-    const existing = await getUserWebsite(user.id);
-    const website = existing
-      ? await prisma.website.update({ where: { id: existing.id }, data })
-      : await prisma.website.create({ data: { ...data, userId: user.id } });
+    const existing = await getOrCreateUserWebsite(user);
+    const website = await prisma.website.update({
+      where: { id: existing.id },
+      data: { ...result.data, published: true },
+    });
 
-    updateTag(websiteTag(website.id));
+    expireWebsiteCache(website);
+    refresh();
 
-    return {
-      status: "success",
-      message: "Din hemsida är sparad och publicerad!",
-      websiteId: website.id,
-    };
+    return { status: "success", message: "Din hemsida är sparad och publicerad!" };
   } catch (error) {
     console.error("Failed to save website", error);
     return {
