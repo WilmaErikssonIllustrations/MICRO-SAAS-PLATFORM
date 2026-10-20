@@ -79,6 +79,11 @@ async function Overview() {
                 ? "Publicerad. Ändringar syns när du publicerar igen i editorn."
                 : "Inte publicerad än. Öppna editorn och klicka på Publish."}
             </p>
+            {website.draft !== null && (
+              <p className="mt-1 text-sm font-medium text-amber-700">
+                Du har sparade ändringar som inte är publicerade.
+              </p>
+            )}
           </div>
           <Link
             href="/dashboard/editor"

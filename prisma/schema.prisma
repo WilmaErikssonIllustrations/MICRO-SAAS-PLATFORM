@@ -76,8 +76,10 @@ model Website {
 
   // Site name, mirrored from the page's root props for metadata and lists.
   title     String
-  // The page built in the Puck editor (root props + blocks), stored as JSON.
+  // The published page built in the Puck editor (root props + blocks).
   data      Json     @default("{}")
+  // Saved but unpublished edits; null when the editor matches `data`.
+  draft     Json?
   published Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

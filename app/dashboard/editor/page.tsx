@@ -19,9 +19,18 @@ export default function EditorPage() {
 async function Editor() {
   const user = await requireUser();
   const website = await getOrCreateUserWebsite(user);
-  const data = isEmptyPage(website.data)
+
+  const published = isEmptyPage(website.data)
     ? starterPage(website.title)
     : (website.data as unknown as PageData);
+  // Continue from saved, unpublished edits when there are any.
+  const draft = isEmptyPage(website.draft) ? null : (website.draft as unknown as PageData);
 
-  return <PageEditor initialData={data} siteUrl={platformSiteUrl(website.subdomain)} />;
+  return (
+    <PageEditor
+      publishedData={published}
+      draftData={draft}
+      siteUrl={platformSiteUrl(website.subdomain)}
+    />
+  );
 }
