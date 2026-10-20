@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { signOut } from "@/actions/auth";
 import { requireUser } from "@/lib/current-user";
@@ -85,12 +84,18 @@ async function Overview() {
               </p>
             )}
           </div>
-          <Link
+          {/*
+            A full page load on purpose, not <Link>. With Cache Components,
+            Next.js keeps visited pages hidden with <Activity> instead of
+            unmounting them; Puck's preview iframe breaks when such a hidden
+            editor is shown again, and it would show stale page data.
+          */}
+          <a
             href="/dashboard/editor"
             className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700"
           >
             Redigera sidan
-          </Link>
+          </a>
         </div>
         {website.published && <PublishedLink urls={publicUrls} />}
       </section>

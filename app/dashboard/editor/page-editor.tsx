@@ -2,12 +2,9 @@
 
 import { Puck } from "@puckeditor/core";
 import "@puckeditor/core/puck.css";
-import Link from "next/link";
-import { type MouseEvent, useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { type EditorActionResult, publishPage, saveDraft } from "@/actions/website";
 import { type PageData, pageConfig } from "@/lib/page/config";
-
-const LEAVE_WARNING = "Du har ändringar som inte är sparade. Vill du lämna editorn ändå?";
 
 type PageEditorProps = {
   publishedData: PageData;
@@ -74,18 +71,13 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
     return () => targets.forEach((target) => target.removeEventListener("keydown", onKeyDown));
   });
 
-  // Warn before closing the tab or reloading with unsaved edits.
+  // Warn before leaving with unsaved edits (closing, reloading or "Tillbaka").
   useEffect(() => {
     if (!unsaved) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [unsaved]);
-
-  // Client-side navigation doesn't fire beforeunload, so ask here.
-  function confirmLeave(event: MouseEvent) {
-    if (unsaved && !window.confirm(LEAVE_WARNING)) event.preventDefault();
-  }
 
   return (
     <Puck
@@ -97,13 +89,10 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
       overrides={{
         headerActions: ({ children }) => (
           <>
-            <Link
-              href="/dashboard"
-              onClick={confirmLeave}
-              style={{ fontSize: 14, marginRight: 8, textDecoration: "underline" }}
-            >
+            {/* A full page load, not <Link>: see the note in app/dashboard/page.tsx. */}
+            <a href="/dashboard" style={{ fontSize: 14, marginRight: 8, textDecoration: "underline" }}>
               Tillbaka
-            </Link>
+            </a>
             <StatusText
               busy={busy}
               unsaved={unsaved}
