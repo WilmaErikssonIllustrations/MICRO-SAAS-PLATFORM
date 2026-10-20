@@ -3,7 +3,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { signOut } from "@/actions/auth";
 import { requireUser } from "@/lib/current-user";
-import { getCustomDomainTarget, getRootDomain, subdomainUrl } from "@/lib/domains";
+import {
+  getCustomDomainTarget,
+  getRootDomain,
+  platformSiteUrl,
+  usesPathRouting,
+} from "@/lib/domains";
 import { getOrCreateUserWebsite } from "@/lib/websites";
 import { PublishedLink } from "./_components/published-link";
 import { SiteSettingsForm } from "./_components/site-settings-form";
@@ -60,7 +65,7 @@ async function Overview() {
   const user = await requireUser();
   const website = await getOrCreateUserWebsite(user);
 
-  const publicUrls = [subdomainUrl(website.subdomain)];
+  const publicUrls = [platformSiteUrl(website.subdomain)];
   if (website.customDomain) publicUrls.push(`https://${website.customDomain}`);
 
   return (
@@ -86,7 +91,8 @@ async function Overview() {
       </section>
 
       <SiteSettingsForm
-        rootDomain={getRootDomain()}
+        addressPrefix={usesPathRouting() ? `${getRootDomain()}/s/` : ""}
+        addressSuffix={usesPathRouting() ? "" : `.${getRootDomain()}`}
         cnameTarget={getCustomDomainTarget()}
         subdomain={website.subdomain}
         customDomain={website.customDomain}

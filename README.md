@@ -47,6 +47,21 @@ machine without any extra setup.
 - **Caching:** public pages are cached per hostname and expired when the
   owner publishes or changes the site's addresses.
 
+## Hosting without your own domain
+
+Subdomain sites need a wildcard domain (`*.ROOT_DOMAIN`). On a free
+`*.vercel.app` address you can't create subdomains, so set:
+
+```
+ROOT_DOMAIN="your-project.vercel.app"
+BETTER_AUTH_URL="https://your-project.vercel.app"
+SITE_ROUTING="path"
+```
+
+Sites are then served on `https://your-project.vercel.app/s/<subdomain>`.
+Switch back to `SITE_ROUTING="subdomain"` once you have a domain. Users
+keep the same addresses, only the URL format changes.
+
 ## Custom domains
 
 The customer creates a DNS record that points at the platform:

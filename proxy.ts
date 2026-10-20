@@ -1,6 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { matchHost } from "@/lib/domains";
+import { matchHost, usesPathRouting } from "@/lib/domains";
 
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
@@ -14,8 +14,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL(`/sites/${hostname}${pathname}`, request.url));
   }
 
-  // The internal route is only reachable through a tenant hostname.
-  if (pathname.startsWith("/sites")) {
+  // The internal route is only reachable through a tenant hostname, and
+  // /s/<subdomain> only when path routing is enabled.
+  if (pathname.startsWith("/sites") || (pathname.startsWith("/s/") && !usesPathRouting())) {
     return NextResponse.rewrite(new URL("/404", request.url));
   }
 

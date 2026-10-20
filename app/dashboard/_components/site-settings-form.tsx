@@ -11,7 +11,9 @@ import { FormField, fieldProps } from "./form-field";
 import { Section } from "./section";
 
 type SiteSettingsFormProps = {
-  rootDomain: string;
+  /** Shown around the subdomain input, e.g. ".example.com" or "example.com/s/". */
+  addressPrefix: string;
+  addressSuffix: string;
   cnameTarget: string;
   subdomain: string;
   customDomain: string | null;
@@ -20,7 +22,8 @@ type SiteSettingsFormProps = {
 const initialState: SiteSettingsState = { status: "idle" };
 
 export function SiteSettingsForm({
-  rootDomain,
+  addressPrefix,
+  addressSuffix,
   cnameTarget,
   subdomain,
   customDomain,
@@ -40,6 +43,9 @@ export function SiteSettingsForm({
       <Section title="Adress">
         <FormField id="subdomain" label="Gratisadress" error={errors?.subdomain}>
           <div className="flex items-center gap-2">
+            {addressPrefix && (
+              <span className="shrink-0 text-sm text-zinc-500">{addressPrefix}</span>
+            )}
             <input
               // Remount when the saved value changes so the field shows it normalized.
               key={subdomain}
@@ -48,7 +54,7 @@ export function SiteSettingsForm({
               autoComplete="off"
               spellCheck={false}
             />
-            <span className="shrink-0 text-sm text-zinc-500">.{rootDomain}</span>
+            <span className="shrink-0 text-sm text-zinc-500">{addressSuffix}</span>
           </div>
         </FormField>
 
