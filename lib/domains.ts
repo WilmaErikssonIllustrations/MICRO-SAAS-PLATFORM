@@ -39,14 +39,16 @@ export function matchHost(host: string): HostMatch {
   if (hostname === root || hostname === `www.${root}`) {
     return { kind: "platform" };
   }
-  // Vercel preview deployments get their own *.vercel.app hostnames, which
-  // customers can never own, so treat them as the platform too.
-  if (hostname.endsWith(".vercel.app")) return { kind: "platform" };
+  // Checked before the *.vercel.app rule below: with ROOT_DOMAIN on
+  // vercel.app, path routing looks sites up as <subdomain>.ROOT_DOMAIN.
   if (hostname.endsWith(`.${root}`)) {
     const subdomain = hostname.slice(0, -(root.length + 1));
     // Only one level deep: a.b.root is not a valid site address.
     if (!subdomain.includes(".")) return { kind: "subdomain", subdomain };
   }
+  // Vercel preview deployments get their own *.vercel.app hostnames, which
+  // customers can never own, so treat them as the platform too.
+  if (hostname.endsWith(".vercel.app")) return { kind: "platform" };
   return { kind: "custom", domain: hostname };
 }
 
