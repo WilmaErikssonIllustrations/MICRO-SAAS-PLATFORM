@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/current-user";
+import { subdomainUrl } from "@/lib/domains";
 import { type PageData, isEmptyPage, starterPage } from "@/lib/page/config";
 import { getOrCreateUserWebsite } from "@/lib/websites";
 import { PageEditor } from "./page-editor";
@@ -22,5 +23,5 @@ async function Editor() {
     ? starterPage(website.title)
     : (website.data as unknown as PageData);
 
-  return <PageEditor initialData={data} />;
+  return <PageEditor initialData={data} siteUrl={subdomainUrl(website.subdomain)} />;
 }
