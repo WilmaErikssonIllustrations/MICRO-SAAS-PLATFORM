@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { publishPage, saveDraft } from "@/actions/website";
 import { type PageData, pageConfig } from "@/lib/page/config";
 import { BlockTile } from "./block-tile";
+import { PreviewFrame } from "./canvas-context-menu";
 import { svDictionary } from "./dictionary";
 import { EditorTopBar, type LastAction } from "./editor-top-bar";
 
@@ -101,6 +102,7 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
           />
         ),
         drawerItem: BlockTile,
+        iframe: PreviewFrame,
       }}
     />
   );
