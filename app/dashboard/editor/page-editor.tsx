@@ -9,6 +9,7 @@ import { type PageData, pageConfig } from "@/lib/page/config";
 import { BlockTile } from "./block-tile";
 import { PreviewFrame } from "./canvas-context-menu";
 import { EditorShell } from "./image-editor";
+import { sideRailPlugins } from "./side-rail";
 import { svDictionary } from "./dictionary";
 import { EditorTopBar, type LastAction } from "./editor-top-bar";
 
@@ -89,7 +90,14 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
       data={initialData}
       onChange={handleChange}
       dictionary={svDictionary}
-      ui={{ leftSideBarWidth: 280, rightSideBarWidth: 300 }}
+      plugins={sideRailPlugins}
+      // Start with the canvas wide open; the plus adds blocks from a dropdown.
+      ui={{
+        leftSideBarVisible: false,
+        plugin: { current: "outline" },
+        leftSideBarWidth: 280,
+        rightSideBarWidth: 300,
+      }}
       overrides={{
         header: () => (
           <EditorTopBar

@@ -2,9 +2,9 @@
 
 import { useGetPuck } from "@puckeditor/core";
 import type { ReactNode } from "react";
-import { ROOT_ZONE } from "@/components/page-blocks/update-block";
+import { type PuckApi, ROOT_ZONE } from "@/components/page-blocks/update-block";
 
-const blocks: Record<string, { label: string; hint: string; icon: ReactNode }> = {
+export const BLOCKS: Record<string, { label: string; hint: string; icon: ReactNode }> = {
   Hero: {
     label: "Hero",
     hint: "Stor rubrik med knapp",
@@ -51,51 +51,58 @@ const blocks: Record<string, { label: string; hint: string; icon: ReactNode }> =
   Spacer: { label: "Mellanrum", hint: "Luft mellan block", icon: <path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4" /> },
 };
 
+/** Adds a block below the selected one, or last on the page. */
+export function addBlock(puck: PuckApi, type: string) {
+  const { appState, dispatch } = puck;
+  const selected = appState.ui.itemSelector;
+  const zone = selected?.zone ?? ROOT_ZONE;
+  const index = selected?.zone !== undefined ? selected.index + 1 : appState.data.content.length;
+
+  dispatch({ type: "insert", componentType: type, destinationIndex: index, destinationZone: zone });
+  dispatch({ type: "setUi", ui: { itemSelector: { index, zone } } });
+}
+
+export function BlockIcon({ name, size = 20 }: { name: string; size?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {BLOCKS[name]?.icon}
+    </svg>
+  );
+}
+
 // Puck drawer item override: a card that can be dragged onto the page, or
 // clicked to add the block below the selected one (or last on the page).
 export function BlockTile({ name }: { name: string; children: ReactNode }) {
   const getPuck = useGetPuck();
-  const block = blocks[name] ?? { label: name, hint: "", icon: null };
-
-  function addBlock() {
-    const { appState, dispatch } = getPuck();
-    const selected = appState.ui.itemSelector;
-    const zone = selected?.zone ?? ROOT_ZONE;
-    const index =
-      selected?.zone !== undefined ? selected.index + 1 : appState.data.content.length;
-
-    dispatch({ type: "insert", componentType: name, destinationIndex: index, destinationZone: zone });
-    dispatch({ type: "setUi", ui: { itemSelector: { index, zone } } });
-  }
+  const block = BLOCKS[name] ?? { label: name, hint: "", icon: null };
+  const add = () => addBlock(getPuck(), name);
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={addBlock}
+      onClick={add}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          addBlock();
+          add();
         }
       }}
       title="Klicka för att lägga till, eller dra in i sidan"
       className="mb-2 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 bg-white p-2.5 text-left shadow-xs transition hover:-translate-y-px hover:border-violet-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-500"
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
-        <svg
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          {block.icon}
-        </svg>
+        <BlockIcon name={name} />
       </span>
       <span className="grid min-w-0 gap-0.5">
         <span className="text-sm font-semibold text-zinc-900">{block.label}</span>

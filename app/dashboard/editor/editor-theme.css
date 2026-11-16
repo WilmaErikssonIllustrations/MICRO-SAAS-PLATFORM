@@ -25,3 +25,22 @@
   --puck-radius-m: 8px;
   --puck-radius-l: 12px;
 }
+
+/*
+  The editor is always light. globals.css switches the page text to a light
+  color in dark mode, which Puck's panels inherit on their white background.
+*/
+html body {
+  background: #ffffff;
+  color: #171717;
+}
+
+/* The plus in the left rail takes clicks on the whole item (side-rail.tsx). */
+[class*="_NavItem-link_"]:has(.add-block-trigger) {
+  position: relative;
+}
+.add-block-trigger::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
