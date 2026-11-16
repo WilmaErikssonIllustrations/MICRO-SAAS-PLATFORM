@@ -2,17 +2,19 @@
 
 import { Puck } from "@puckeditor/core";
 import "@puckeditor/core/puck.css";
+import "./editor-theme.css";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { type EditorActionResult, publishPage, saveDraft } from "@/actions/website";
+import { publishPage, saveDraft } from "@/actions/website";
 import { type PageData, pageConfig } from "@/lib/page/config";
+import { BlockTile } from "./block-tile";
+import { svDictionary } from "./dictionary";
+import { EditorTopBar, type LastAction } from "./editor-top-bar";
 
 type PageEditorProps = {
   publishedData: PageData;
   draftData: PageData | null;
   siteUrl: string;
 };
-
-type LastAction = EditorActionResult & { action: "save" | "publish" };
 
 export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProps) {
   const initialData = draftData ?? publishedData;
@@ -83,89 +85,23 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
     <Puck
       config={pageConfig}
       data={initialData}
-      onPublish={(data) => run("publish", data)}
       onChange={handleChange}
-      headerTitle="Redigera din hemsida"
+      dictionary={svDictionary}
+      ui={{ leftSideBarWidth: 280, rightSideBarWidth: 300 }}
       overrides={{
-        headerActions: ({ children }) => (
-          <>
-            {/* A full page load, not <Link>: see the note in app/dashboard/page.tsx. */}
-            <a href="/dashboard" style={{ fontSize: 14, marginRight: 8, textDecoration: "underline" }}>
-              Tillbaka
-            </a>
-            <StatusText
-              busy={busy}
-              unsaved={unsaved}
-              unpublished={unpublished}
-              lastAction={lastAction}
-              siteUrl={siteUrl}
-            />
-            <button
-              type="button"
-              onClick={save}
-              disabled={!unsaved || busy}
-              title="Spara utan att publicera (Ctrl+S)"
-              style={{
-                padding: "8px 16px",
-                borderRadius: 4,
-                border: "1px solid #d4d4d8",
-                background: "white",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: !unsaved || busy ? "default" : "pointer",
-                opacity: !unsaved || busy ? 0.5 : 1,
-              }}
-            >
-              Spara
-            </button>
-            {children}
-          </>
+        header: () => (
+          <EditorTopBar
+            busy={busy}
+            unsaved={unsaved}
+            unpublished={unpublished}
+            lastAction={lastAction}
+            siteUrl={siteUrl}
+            onSave={save}
+            onPublish={(data) => run("publish", data)}
+          />
         ),
+        drawerItem: BlockTile,
       }}
     />
   );
-}
-
-function StatusText({
-  busy,
-  unsaved,
-  unpublished,
-  lastAction,
-  siteUrl,
-}: {
-  busy: boolean;
-  unsaved: boolean;
-  unpublished: boolean;
-  lastAction: LastAction | null;
-  siteUrl: string;
-}) {
-  if (busy) return <span style={{ fontSize: 14 }}>Sparar...</span>;
-
-  if (lastAction) {
-    return (
-      <span role="status" style={{ fontSize: 14, color: lastAction.ok ? "#15803d" : "#dc2626" }}>
-        {lastAction.message}
-        {lastAction.ok && lastAction.action === "publish" && (
-          <>
-            {" "}
-            <a
-              href={siteUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{ fontWeight: 600, textDecoration: "underline" }}
-            >
-              Visa sidan ↗
-            </a>
-          </>
-        )}
-        {lastAction.ok && lastAction.action === "save" && " Inte publicerat än."}
-      </span>
-    );
-  }
-
-  if (unsaved) return <span style={{ fontSize: 14, color: "#71717a" }}>Ej sparade ändringar</span>;
-  if (unpublished) {
-    return <span style={{ fontSize: 14, color: "#b45309" }}>Sparat utkast, inte publicerat</span>;
-  }
-  return null;
 }

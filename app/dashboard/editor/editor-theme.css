@@ -1,0 +1,27 @@
+/*
+  Canva/Lovable-like look for the Puck editor. Puck's own tokens live in
+  `@layer puck-tokens`, so these unlayered values win. Puck copies the host
+  styles into its preview iframe, so the selection outlines follow too.
+*/
+:root {
+  /* Puck uses its "azure" scale as the accent color: make it violet. */
+  --puck-color-azure-01: #2e1065;
+  --puck-color-azure-02: #3b0f80;
+  --puck-color-azure-03: #4c1d95;
+  --puck-color-azure-04: #6d28d9;
+  --puck-color-azure-05: #7c3aed;
+  --puck-color-azure-06: #8b5cf6;
+  --puck-color-azure-07: #a78bfa;
+  --puck-color-azure-08: #c4b5fd;
+  --puck-color-azure-09: #ddd6fe;
+  --puck-color-azure-10: #ede9fe;
+  --puck-color-azure-11: #f5f3ff;
+  --puck-color-azure-12: #faf8ff;
+
+  /* Grey "desk" around the page, like a design canvas. */
+  --puck-color-surface-subtle: #eef0f4;
+
+  --puck-radius-s: 6px;
+  --puck-radius-m: 8px;
+  --puck-radius-l: 12px;
+}
