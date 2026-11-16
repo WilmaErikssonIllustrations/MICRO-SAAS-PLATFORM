@@ -337,6 +337,58 @@ export function TextInput({
   );
 }
 
+/** A number with a unit (e.g. px) and a save button. */
+export function NumberInput({
+  value,
+  min,
+  max,
+  unit,
+  hint,
+  onSave,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  unit: string;
+  hint?: string;
+  onSave: (value: number) => void;
+}) {
+  const [text, setText] = useState(String(value));
+  const number = Number(text);
+  const valid = text.trim() !== "" && Number.isFinite(number) && number >= min && number <= max;
+  return (
+    <form
+      className="grid gap-2 p-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (valid) onSave(Math.round(number));
+      }}
+    >
+      <label className="flex items-center gap-2">
+        <input
+          autoFocus
+          type="number"
+          inputMode="numeric"
+          min={min}
+          max={max}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          className="h-9 min-w-0 flex-1 rounded-lg border border-zinc-200 px-2.5 text-sm tabular-nums focus:border-violet-500 focus:outline-none"
+        />
+        <span className="text-zinc-500">{unit}</span>
+      </label>
+      {hint && <p className="text-xs text-zinc-500">{hint}</p>}
+      <button
+        type="submit"
+        disabled={!valid}
+        className="h-8 rounded-lg bg-violet-600 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+      >
+        Spara
+      </button>
+    </form>
+  );
+}
+
 /** Upload or remove an image. */
 export function ImageActions({ hasImage, onChange }: { hasImage: boolean; onChange: (url: string) => void }) {
   const { upload, uploading, error } = useImageUpload();

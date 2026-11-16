@@ -1,7 +1,9 @@
 "use client";
 
-import { FieldLabel, useGetPuck, usePuck } from "@puckeditor/core";
+import { createUsePuck, FieldLabel, useGetPuck } from "@puckeditor/core";
 import { useImageEditor } from "./image-editor-context";
+
+const usePuck = createUsePuck();
 
 type ImageEditFieldProps = {
   label: string;
@@ -14,7 +16,7 @@ type ImageEditFieldProps = {
 export function ImageEditField({ label, imageProp, editProp, background }: ImageEditFieldProps) {
   const editor = useImageEditor();
   const getPuck = useGetPuck();
-  const hasImage = Boolean(usePuck().selectedItem?.props[imageProp]);
+  const hasImage = usePuck((s) => Boolean(s.selectedItem?.props[imageProp]));
 
   return (
     <FieldLabel label={label} el="div">

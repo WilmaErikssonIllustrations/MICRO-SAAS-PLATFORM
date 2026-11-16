@@ -2,6 +2,7 @@ import type { Config, CustomField, Data, RichText, Slot } from "@puckeditor/core
 import {
   Button,
   type ButtonProps,
+  COLUMN_COUNTS,
   Columns,
   type ColumnsRatio,
   Heading,
@@ -17,6 +18,7 @@ import {
 } from "@/components/page-blocks/blocks";
 import { CanvasImagePicker } from "@/components/page-blocks/canvas-image-picker";
 import { ColorField } from "@/components/page-blocks/color-field";
+import { ColumnWidthsField } from "@/components/page-blocks/column-widths-field";
 import { FontField, FontListField } from "@/components/page-blocks/font-field";
 import { ImageEditField } from "@/components/page-blocks/image-edit-field";
 import { ImageField } from "@/components/page-blocks/image-field";
@@ -36,8 +38,17 @@ type Components = {
   Text: { content: RichText; color: string; font: string; typography: Typography };
   Image: ImageProps;
   Button: ButtonProps;
-  Columns: { ratio: ColumnsRatio; left: Slot; right: Slot };
-  Spacer: { size: SpacerSize };
+  Columns: {
+    count: number;
+    /** Two-column layouts from before `widths`; hidden in the editor. */
+    ratio: ColumnsRatio;
+    widths: number[];
+    left: Slot;
+    right: Slot;
+    third: Slot;
+    fourth: Slot;
+  };
+  Spacer: { size: SpacerSize; height: number };
 };
 
 export type RootProps = {
@@ -95,13 +106,22 @@ function imageEditField(imageProp: string, editProp: string, background = false)
   } satisfies CustomField<ImageEdit>;
 }
 
-/** Text size, letter spacing and line height. */
-const typographyField = {
-  type: "custom",
-  label: "Textstil",
-  metadata: { kind: "typography" },
-  render: ({ value, onChange }) => <TypographyField label="Textstil" value={value} onChange={onChange} />,
-} satisfies CustomField<Typography>;
+/**
+ * Text size, letter spacing and line height. `basePx` is the block's normal
+ * text size in pixels (per value of `baseProp` when it depends on another
+ * prop), so the size can also be entered in pixels.
+ */
+function typographyField(basePx: number | Record<string, number>, baseProp?: string) {
+  const metadata = { kind: "typography", basePx, baseProp };
+  return {
+    type: "custom",
+    label: "Textstil",
+    metadata,
+    render: ({ value, onChange }) => (
+      <TypographyField label="Textstil" value={value} onChange={onChange} metadata={metadata} />
+    ),
+  } satisfies CustomField<Typography>;
+}
 
 /** A font; empty means the page's font. */
 function fontField(label: string) {
@@ -188,7 +208,7 @@ export const pageConfig: PageConfig = {
         backgroundColor: colorField("Egen bakgrundsfärg"),
         align: alignField,
         font: fontField("Typsnitt"),
-        typography: typographyField,
+        typography: typographyField(60),
       },
       defaultProps: {
         image: "",
@@ -237,7 +257,7 @@ export const pageConfig: PageConfig = {
         align: alignField,
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
-        typography: typographyField,
+        typography: typographyField({ h2: 30, h3: 24 }, "level"),
       },
       defaultProps: {
         text: "Rubrik",
@@ -255,7 +275,7 @@ export const pageConfig: PageConfig = {
         content: { type: "richtext", label: "Text" },
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
-        typography: typographyField,
+        typography: typographyField(18),
       },
       defaultProps: { content: "<p>Skriv din text här.</p>", color: "", font: "", typography: DEFAULT_TYPOGRAPHY },
       render: ({ content, color, font, typography }) => (
@@ -277,8 +297,9 @@ export const pageConfig: PageConfig = {
             { label: "Hela sidan", value: "full" },
           ],
         },
+        widthPx: { type: "number", label: "Bredd i pixlar (0 = fyll bredden)", min: 0, max: 2000, step: 10 },
       },
-      defaultProps: { src: "", alt: "", width: "wide", edit: DEFAULT_IMAGE_EDIT },
+      defaultProps: { src: "", alt: "", width: "wide", widthPx: 0, edit: DEFAULT_IMAGE_EDIT },
       render: ({ puck, ...props }) => (
         <ImageBlock
           {...props}
@@ -307,7 +328,7 @@ export const pageConfig: PageConfig = {
         color: colorField("Knappfärg"),
         textColor: colorField("Textfärg"),
         font: fontField("Typsnitt"),
-        typography: typographyField,
+        typography: typographyField(16),
       },
       defaultProps: {
         label: "Läs mer",
@@ -324,21 +345,43 @@ export const pageConfig: PageConfig = {
     Columns: {
       label: "Kolumner",
       fields: {
+        count: {
+          type: "select",
+          label: "Antal kolumner",
+          options: COLUMN_COUNTS.map((count) => ({ label: String(count), value: count })),
+        },
         ratio: {
           type: "select",
           label: "Fördelning",
+          visible: false,
           options: [
             { label: "Lika breda", value: "1:1" },
             { label: "Bred vänster", value: "2:1" },
             { label: "Bred höger", value: "1:2" },
           ],
         },
-        left: { type: "slot", label: "Vänster" },
-        right: { type: "slot", label: "Höger" },
+        widths: {
+          type: "custom",
+          label: "Kolumnbredder",
+          metadata: { kind: "columnWidths" },
+          render: ({ field, value, onChange }) => (
+            <ColumnWidthsField label={field.label ?? "Kolumnbredder"} value={value} onChange={onChange} />
+          ),
+        },
+        // Slot names kept from the two-column version, so old pages still work.
+        left: { type: "slot", label: "Kolumn 1" },
+        right: { type: "slot", label: "Kolumn 2" },
+        third: { type: "slot", label: "Kolumn 3" },
+        fourth: { type: "slot", label: "Kolumn 4" },
       },
-      defaultProps: { ratio: "1:1", left: [], right: [] },
-      render: ({ ratio, left: Left, right: Right }) => (
-        <Columns ratio={ratio} left={<Left />} right={<Right />} />
+      defaultProps: { count: 2, ratio: "1:1", widths: [], left: [], right: [], third: [], fourth: [] },
+      render: ({ count, ratio, widths, left: First, right: Second, third: Third, fourth: Fourth }) => (
+        <Columns
+          count={count}
+          ratio={ratio}
+          widths={widths}
+          columns={[<First key="1" />, <Second key="2" />, <Third key="3" />, <Fourth key="4" />]}
+        />
       ),
     },
     Spacer: {
@@ -353,9 +396,10 @@ export const pageConfig: PageConfig = {
             { label: "Stort", value: "lg" },
           ],
         },
+        height: { type: "number", label: "Höjd i pixlar (0 = enligt storlek)", min: 0, max: 800, step: 4 },
       },
-      defaultProps: { size: "md" },
-      render: ({ size }) => <Spacer size={size} />,
+      defaultProps: { size: "md", height: 0 },
+      render: ({ size, height }) => <Spacer size={size} height={height} />,
     },
   },
 };

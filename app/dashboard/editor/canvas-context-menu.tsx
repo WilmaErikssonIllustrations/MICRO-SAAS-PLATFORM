@@ -4,7 +4,13 @@ import { type ComponentData, createUsePuck, type Field, useGetPuck } from "@puck
 import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useImageEditor } from "@/components/page-blocks/image-editor-context";
-import { TypographyControls, typographySummary } from "@/components/page-blocks/typography-field";
+import { columnWidthsSummary } from "@/components/page-blocks/column-widths-field";
+import {
+  resolveBasePx,
+  TypographyControls,
+  type TypographyMetadata,
+  typographySummary,
+} from "@/components/page-blocks/typography-field";
 import {
   type PuckApi,
   ROOT_ZONE,
@@ -31,10 +37,12 @@ import {
   MenuDivider,
   MenuHeader,
   MenuItem,
+  NumberInput,
   OptionRow,
   Swatch,
   TextInput,
 } from "./context-menu-ui";
+import { ResizeHandles } from "./resize-handles";
 
 const usePuck = createUsePuck<PageConfig>();
 
@@ -50,6 +58,7 @@ export function PreviewFrame({ children, document: doc }: { children: ReactNode;
   return (
     <>
       <CanvasContextMenu doc={doc} />
+      <ResizeHandles doc={doc} />
       {children}
     </>
   );
@@ -317,8 +326,32 @@ function FieldItem({
   // "Bakgrundsbild (valfri)" -> "Bakgrundsbild": the menu is narrow.
   const label = (field.label ?? name).replace(/\s*\(.*\)$/, "");
   const kind = field.metadata?.kind as string | undefined;
+  if (field.visible === false) return null;
 
   switch (field.type) {
+    case "number": {
+      const number = typeof value === "number" ? value : 0;
+      return (
+        <MenuItem
+          label={label}
+          icon={<Icon><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" /></Icon>}
+          hint={number > 0 ? `${number} px` : "Auto"}
+          submenu={
+            <NumberInput
+              value={number}
+              min={field.min ?? 0}
+              max={field.max ?? 2000}
+              unit="px"
+              hint={field.label?.match(/\((.*)\)$/)?.[1]}
+              onSave={(next) => {
+                onChange(next);
+                close();
+              }}
+            />
+          }
+        />
+      );
+    }
     case "select":
     case "radio": {
       const current = field.options.find((option) => option.value === value);
@@ -422,12 +455,28 @@ function FieldItem({
       }
       if (kind === "typography") {
         const typography = value as Partial<Typography> | undefined;
+        const basePx = resolveBasePx(field.metadata as TypographyMetadata, block?.props);
         return (
           <MenuItem
             label={label}
             icon={<Icon><path d="M4 7V5h10v2M9 5v14M7 19h4M14 13v-1h6v1M17 12v7M15.5 19h3" /></Icon>}
-            hint={typographySummary(typography)}
-            submenu={<TypographyControls value={typography} onChange={onChange} />}
+            hint={typographySummary(typography, basePx)}
+            submenu={<TypographyControls value={typography} onChange={onChange} basePx={basePx} />}
+          />
+        );
+      }
+      if (kind === "columnWidths") {
+        const widths = Array.isArray(value) ? (value as number[]) : [];
+        return (
+          <MenuItem
+            label="Gör kolumnerna lika breda"
+            disabled={widths.length === 0}
+            icon={<Icon><path d="M4 5v14M12 5v14M20 5v14" /></Icon>}
+            hint={columnWidthsSummary(widths) ?? undefined}
+            onSelect={() => {
+              onChange([]);
+              close();
+            }}
           />
         );
       }

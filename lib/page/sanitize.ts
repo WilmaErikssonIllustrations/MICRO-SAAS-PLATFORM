@@ -41,6 +41,13 @@ export function isSafeUrl(value: string) {
 
 type Props = Record<string, unknown>;
 
+/** Relative column widths (percent); anything odd means equal columns. */
+function sanitizeColumnWidths(value: unknown): number[] {
+  if (!Array.isArray(value) || value.length < 2 || value.length > 4) return [];
+  if (!value.every((width) => typeof width === "number" && width >= 5 && width <= 95)) return [];
+  return value.map((width: number) => Math.round(width * 10) / 10);
+}
+
 /** Uploaded fonts: names end up in CSS, so only safe names and our own URLs. */
 function sanitizeFontList(value: unknown): CustomFont[] {
   if (!Array.isArray(value)) return [];
@@ -72,7 +79,8 @@ function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: 
         ? sanitizeHtml(value.slice(0, MAX_RICHTEXT), RICHTEXT_OPTIONS)
         : "";
     case "number":
-      return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+      if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+      return Math.min(field.max ?? Infinity, Math.max(field.min ?? -Infinity, value));
     case "select":
     case "radio":
       return field.options.some((option) => option.value === value) ? value : fallback;
@@ -83,6 +91,7 @@ function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: 
       if (kind === "image") return typeof value === "string" && isStoredImageUrl(value) ? value : "";
       if (kind === "imageEdit") return sanitizeImageEdit(value);
       if (kind === "typography") return sanitizeTypography(value);
+      if (kind === "columnWidths") return sanitizeColumnWidths(value);
       if (kind === "font") return isFontValue(value) ? value : "";
       if (kind === "fontList") return sanitizeFontList(value);
       return fallback;

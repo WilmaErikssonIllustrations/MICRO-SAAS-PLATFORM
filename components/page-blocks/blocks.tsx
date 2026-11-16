@@ -13,6 +13,9 @@ import { type Typography, typographyVars } from "@/lib/page/typography";
 // Text sizes read --fs (scale), --ls (letter spacing) and --lh (line
 // height) with each element's own default as fallback; blocks set them from
 // their `typography` setting (lib/page/typography.ts).
+//
+// `data-resize-box` marks the element the editor puts resize handles on
+// (app/dashboard/editor/resize-handles.tsx); it does nothing on the site.
 
 type Align = "left" | "center";
 
@@ -166,7 +169,7 @@ export function Hero({
       <div
         className={`mx-auto flex min-h-[60vh] max-w-5xl flex-col justify-center px-6 py-24 ${alignClass[align]}`}
       >
-        <h1 className="max-w-3xl text-[length:calc(2.25rem*var(--fs,1))] leading-(--lh,1.11) font-bold tracking-(--ls,-0.025em) text-balance sm:text-[length:calc(3.75rem*var(--fs,1))] sm:leading-(--lh,1)">
+        <h1 data-resize-box className="max-w-3xl text-[length:calc(2.25rem*var(--fs,1))] leading-(--lh,1.11) font-bold tracking-(--ls,-0.025em) text-balance sm:text-[length:calc(3.75rem*var(--fs,1))] sm:leading-(--lh,1)">
           {title}
         </h1>
         {subtitle && (
@@ -208,6 +211,7 @@ export function Heading({ text, level: Tag, align, color, font, typography }: He
     >
       <FontImport font={font} />
       <Tag
+        data-resize-box
         style={{ color: color || undefined, fontFamily: fontFamily(font) }}
         className={
           Tag === "h2"
@@ -235,6 +239,7 @@ export function TextBlock({
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <div
+      data-resize-box
       {...fontAttrs}
       style={{ color: color || undefined, ...fontStyle, ...typographyVars(typography) }}
       className="mx-auto max-w-3xl px-6 py-6 text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.625) tracking-(--ls,normal) text-zinc-700 [&_:is(h2,h3)]:leading-(--lh,1.3) [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-[length:calc(1.5rem*var(--fs,1))] [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mt-6 [&_h3]:text-[length:calc(1.25rem*var(--fs,1))] [&_h3]:font-semibold [&_h3]:text-zinc-900 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic"
@@ -267,7 +272,7 @@ export function Button({ label, href, variant, align, color, textColor, font, ty
       className={`mx-auto flex max-w-3xl flex-col px-6 pb-6 ${alignClass[align]}`}
     >
       <FontImport font={font} />
-      <ButtonLink href={href || "#"} variant={variant} color={color} textColor={textColor}>
+      <ButtonLink href={href || "#"} variant={variant} color={color} textColor={textColor} resizeBox>
         {label}
       </ButtonLink>
     </div>
@@ -285,6 +290,7 @@ function ButtonLink({
   variant,
   color,
   textColor,
+  resizeBox,
   children,
 }: {
   href: string;
@@ -292,10 +298,12 @@ function ButtonLink({
   /** Button color and text color; empty or missing means the defaults. */
   color?: string;
   textColor?: string;
+  resizeBox?: boolean;
   children: ReactNode;
 }) {
   return (
     <a
+      data-resize-box={resizeBox || undefined}
       href={href}
       rel="noopener noreferrer"
       style={{ ...themeStyle(color), color: textColor || undefined }}
@@ -306,36 +314,61 @@ function ButtonLink({
   );
 }
 
-const columnRatio = {
-  "1:1": "md:grid-cols-2",
-  "2:1": "md:grid-cols-[2fr_1fr]",
-  "1:2": "md:grid-cols-[1fr_2fr]",
-} as const;
+// Two-column layouts from before custom widths existed.
+const columnRatio = { "1:1": [1, 1], "2:1": [2, 1], "1:2": [1, 2] } as const;
 
 export type ColumnsRatio = keyof typeof columnRatio;
 
+export const COLUMN_COUNTS = [2, 3, 4] as const;
+
+/**
+ * Relative column widths: the dragged `widths` when they match the column
+ * count, else the old two-column ratio, else equal columns.
+ */
+export function columnFractions(count: number, ratio: ColumnsRatio | undefined, widths: number[] | undefined) {
+  const n = COLUMN_COUNTS.includes(count as 2) ? count : 2;
+  if (widths?.length === n) return widths;
+  if (n === 2 && ratio && columnRatio[ratio]) return [...columnRatio[ratio]];
+  return Array<number>(n).fill(1);
+}
+
 export function Columns({
+  count,
   ratio,
-  left,
-  right,
+  widths,
+  columns,
 }: {
-  ratio: ColumnsRatio;
-  left: ReactNode;
-  right: ReactNode;
+  count: number;
+  ratio?: ColumnsRatio;
+  widths?: number[];
+  columns: ReactNode[];
 }) {
+  const fractions = columnFractions(count, ratio, widths);
+  // Stacked on phones; side by side from md up.
+  const style = { "--cols": fractions.map((f) => `minmax(0,${f}fr)`).join(" ") } as CSSProperties;
   return (
-    <div className={`mx-auto grid max-w-5xl gap-8 px-6 py-6 ${columnRatio[ratio]}`}>
-      <div className="min-w-0">{left}</div>
-      <div className="min-w-0">{right}</div>
+    <div data-resize-box style={style} className="mx-auto grid max-w-5xl gap-8 px-6 py-6 md:grid-cols-(--cols)">
+      {columns.slice(0, fractions.length).map((column, index) => (
+        <div key={index} className="min-w-0">
+          {column}
+        </div>
+      ))}
     </div>
   );
 }
 
 const imageWidth = { narrow: "max-w-2xl", wide: "max-w-5xl", full: "max-w-none" } as const;
 
-export type ImageProps = { src: string; alt: string; width: keyof typeof imageWidth; edit: ImageEdit };
+export type ImageProps = {
+  src: string;
+  alt: string;
+  width: keyof typeof imageWidth;
+  /** Image width in pixels; 0 fills the width above. */
+  widthPx: number;
+  edit: ImageEdit;
+};
 
-export function ImageBlock({ src, alt, width, edit, imageControls }: ImageProps & ImageControls) {
+export function ImageBlock({ src, alt, width, widthPx, edit, imageControls }: ImageProps & ImageControls) {
   if (!src) {
     // An empty image is only shown in the editor, as a place to upload one.
     if (!imageControls) return null;
@@ -352,7 +385,12 @@ export function ImageBlock({ src, alt, width, edit, imageControls }: ImageProps 
     <figure className={`group relative mx-auto py-6 ${width === "full" ? "" : "px-6"} ${imageWidth[width]}`}>
       {/* The frame crops (format, zoom) and rounds the corners. */}
       <div
-        style={{ ...imageFrameStyle(edit), ...(width === "full" && { borderRadius: 0 }) }}
+        data-resize-box
+        style={{
+          ...imageFrameStyle(edit),
+          ...(width === "full" && { borderRadius: 0 }),
+          ...(widthPx > 0 && { width: widthPx, maxWidth: "100%", marginInline: "auto" }),
+        }}
         className="overflow-hidden"
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
@@ -381,6 +419,14 @@ const spacerSize = { sm: "h-6", md: "h-16", lg: "h-32" } as const;
 
 export type SpacerSize = keyof typeof spacerSize;
 
-export function Spacer({ size }: { size: SpacerSize }) {
-  return <div aria-hidden className={spacerSize[size]} />;
+/** `height` in pixels overrides the preset `size` when above 0. */
+export function Spacer({ size, height }: { size: SpacerSize; height?: number }) {
+  return (
+    <div
+      aria-hidden
+      data-resize-box
+      style={height ? { height } : undefined}
+      className={height ? undefined : spacerSize[size]}
+    />
+  );
 }

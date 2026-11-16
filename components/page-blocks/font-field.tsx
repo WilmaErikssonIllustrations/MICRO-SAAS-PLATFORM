@@ -1,6 +1,6 @@
 "use client";
 
-import { FieldLabel, usePuck } from "@puckeditor/core";
+import { createUsePuck, FieldLabel } from "@puckeditor/core";
 import { type ChangeEvent, useState } from "react";
 import {
   type CustomFont,
@@ -11,6 +11,8 @@ import {
   GOOGLE_FONTS,
 } from "@/lib/page/fonts";
 import { ACCEPTED_FONT_TYPES, useFontUpload } from "./use-upload";
+
+const usePuck = createUsePuck();
 
 const selectStyle = {
   width: "100%",
@@ -24,7 +26,7 @@ const selectStyle = {
 
 /** The page's uploaded fonts, from the root props. */
 export function useCustomFonts(): CustomFont[] {
-  const fonts = usePuck().appState.data.root.props?.customFonts;
+  const fonts = usePuck((s) => s.appState.data.root.props?.customFonts);
   return Array.isArray(fonts) ? fonts : [];
 }
 

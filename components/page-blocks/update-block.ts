@@ -2,8 +2,17 @@ import type { useGetPuck } from "@puckeditor/core";
 
 export type PuckApi = ReturnType<ReturnType<typeof useGetPuck>>;
 
-/** Merges `patch` into the props of the block with this id. */
-export function updateBlockProps(puck: PuckApi, id: string, patch: Record<string, unknown>) {
+/**
+ * Merges `patch` into the props of the block with this id. Pass
+ * `recordHistory: false` for in-between steps (e.g. while dragging), so
+ * undo jumps over them.
+ */
+export function updateBlockProps(
+  puck: PuckApi,
+  id: string,
+  patch: Record<string, unknown>,
+  recordHistory?: boolean,
+) {
   const item = puck.getItemById(id);
   const selector = puck.getSelectorForId(id);
   if (!item || !selector) return;
@@ -12,6 +21,7 @@ export function updateBlockProps(puck: PuckApi, id: string, patch: Record<string
     destinationIndex: selector.index,
     destinationZone: selector.zone,
     data: { ...item, props: { ...item.props, ...patch } },
+    recordHistory,
   });
 }
 
