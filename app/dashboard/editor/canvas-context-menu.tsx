@@ -42,6 +42,7 @@ import {
   Swatch,
   TextInput,
 } from "./context-menu-ui";
+import { layerLabel, renameLayer } from "./layers-panel";
 import { ResizeHandles } from "./resize-handles";
 
 const usePuck = createUsePuck<PageConfig>();
@@ -162,7 +163,19 @@ function BlockMenu({ id, close }: { id: string; close: () => void }) {
 
   return (
     <>
-      <MenuHeader>{component?.label ?? item.type}</MenuHeader>
+      <MenuHeader>{layerLabel(puck, item)}</MenuHeader>
+      <MenuItem
+        label="Byt namn..."
+        icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
+        submenu={
+          <TextInput
+            value={typeof item.props.layerName === "string" ? item.props.layerName : ""}
+            placeholder={component?.label ?? item.type}
+            onSave={(name) => run(() => renameLayer(getPuck(), id, name))}
+          />
+        }
+      />
+      <MenuDivider />
       {fields.map(([name, field]) => (
         <FieldItem
           key={name}

@@ -17,6 +17,7 @@ const MAX_TEXT = 2_000;
 const MAX_RICHTEXT = 50_000;
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const MAX_CUSTOM_FONTS = 10;
+const MAX_LAYER_NAME = 60;
 
 const RICHTEXT_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [
@@ -71,6 +72,7 @@ function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: 
     case "text":
     case "textarea": {
       const text = typeof value === "string" ? value.slice(0, MAX_TEXT) : "";
+      if (kind === "layerName") return text.trim().slice(0, MAX_LAYER_NAME);
       if (kind === "url") return text === "" || isSafeUrl(text) ? text : "";
       return text;
     }

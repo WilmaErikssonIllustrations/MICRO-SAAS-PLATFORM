@@ -9,6 +9,7 @@ import { type PageData, pageConfig } from "@/lib/page/config";
 import { BlockTile } from "./block-tile";
 import { PreviewFrame } from "./canvas-context-menu";
 import { EditorShell } from "./image-editor";
+import { NamedActionBar } from "./layers-panel";
 import { sideRailPlugins } from "./side-rail";
 import { svDictionary } from "./dictionary";
 import { EditorTopBar, type LastAction } from "./editor-top-bar";
@@ -113,6 +114,7 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
         drawerItem: BlockTile,
         iframe: PreviewFrame,
         puck: EditorShell,
+        actionBar: NamedActionBar,
       }}
     />
   );

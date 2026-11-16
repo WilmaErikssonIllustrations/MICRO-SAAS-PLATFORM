@@ -32,13 +32,16 @@ import { TypographyField } from "@/components/page-blocks/typography-field";
 // fields whose Puck type alone isn't enough (links, colors, images,
 // image edits, fonts).
 
+/** Every block can be given its own name in the Lager panel. */
+type Named<Props> = Props & { layerName: string };
+
 type Components = {
-  Hero: HeroProps;
-  Heading: HeadingProps;
-  Text: { content: RichText; color: string; font: string; typography: Typography };
-  Image: ImageProps;
-  Button: ButtonProps;
-  Columns: {
+  Hero: Named<HeroProps>;
+  Heading: Named<HeadingProps>;
+  Text: Named<{ content: RichText; color: string; font: string; typography: Typography }>;
+  Image: Named<ImageProps>;
+  Button: Named<ButtonProps>;
+  Columns: Named<{
     count: number;
     /** Two-column layouts from before `widths`; hidden in the editor. */
     ratio: ColumnsRatio;
@@ -47,8 +50,8 @@ type Components = {
     right: Slot;
     third: Slot;
     fourth: Slot;
-  };
-  Spacer: { size: SpacerSize; height: number };
+  }>;
+  Spacer: Named<{ size: SpacerSize; height: number }>;
 };
 
 export type RootProps = {
@@ -135,6 +138,17 @@ function fontField(label: string) {
   } satisfies CustomField<string>;
 }
 
+/**
+ * The block's name in the Lager panel; empty means the block type's name.
+ * Hidden in the side panel: it's renamed in the Lager panel or the menu.
+ */
+const layerNameField = {
+  type: "text",
+  label: "Lagernamn",
+  visible: false,
+  metadata: { kind: "layerName" },
+} as const;
+
 export const pageConfig: PageConfig = {
   categories: {
     content: { title: "Innehåll", components: ["Hero", "Heading", "Text", "Image", "Button"] },
@@ -179,6 +193,7 @@ export const pageConfig: PageConfig = {
     Hero: {
       label: "Hero",
       fields: {
+        layerName: layerNameField,
         image: imageField("Bakgrundsbild (valfri)"),
         imageEdit: imageEditField("image", "imageEdit", true),
         overlay: {
@@ -211,6 +226,7 @@ export const pageConfig: PageConfig = {
         typography: typographyField(60),
       },
       defaultProps: {
+        layerName: "",
         image: "",
         title: "Välkommen!",
         subtitle: "En kort mening om vad ni gör.",
@@ -245,6 +261,7 @@ export const pageConfig: PageConfig = {
     Heading: {
       label: "Rubrik",
       fields: {
+        layerName: layerNameField,
         text: { type: "text", label: "Text", contentEditable: true },
         level: {
           type: "select",
@@ -260,6 +277,7 @@ export const pageConfig: PageConfig = {
         typography: typographyField({ h2: 30, h3: 24 }, "level"),
       },
       defaultProps: {
+        layerName: "",
         text: "Rubrik",
         level: "h2",
         align: "left",
@@ -272,12 +290,13 @@ export const pageConfig: PageConfig = {
     Text: {
       label: "Text",
       fields: {
+        layerName: layerNameField,
         content: { type: "richtext", label: "Text" },
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
         typography: typographyField(18),
       },
-      defaultProps: { content: "<p>Skriv din text här.</p>", color: "", font: "", typography: DEFAULT_TYPOGRAPHY },
+      defaultProps: { layerName: "", content: "<p>Skriv din text här.</p>", color: "", font: "", typography: DEFAULT_TYPOGRAPHY },
       render: ({ content, color, font, typography }) => (
         <TextBlock content={content} color={color} font={font} typography={typography} />
       ),
@@ -285,6 +304,7 @@ export const pageConfig: PageConfig = {
     Image: {
       label: "Bild",
       fields: {
+        layerName: layerNameField,
         src: imageField("Bild"),
         edit: imageEditField("src", "edit"),
         alt: { type: "text", label: "Beskrivning (för skärmläsare)" },
@@ -299,7 +319,7 @@ export const pageConfig: PageConfig = {
         },
         widthPx: { type: "number", label: "Bredd i pixlar (0 = fyll bredden)", min: 0, max: 2000, step: 10 },
       },
-      defaultProps: { src: "", alt: "", width: "wide", widthPx: 0, edit: DEFAULT_IMAGE_EDIT },
+      defaultProps: { layerName: "", src: "", alt: "", width: "wide", widthPx: 0, edit: DEFAULT_IMAGE_EDIT },
       render: ({ puck, ...props }) => (
         <ImageBlock
           {...props}
@@ -314,6 +334,7 @@ export const pageConfig: PageConfig = {
     Button: {
       label: "Knapp",
       fields: {
+        layerName: layerNameField,
         label: { type: "text", label: "Text", contentEditable: true },
         href: { type: "text", label: "Länk", metadata: { kind: "url" } },
         variant: {
@@ -331,6 +352,7 @@ export const pageConfig: PageConfig = {
         typography: typographyField(16),
       },
       defaultProps: {
+        layerName: "",
         label: "Läs mer",
         href: "#",
         variant: "filled",
@@ -345,6 +367,7 @@ export const pageConfig: PageConfig = {
     Columns: {
       label: "Kolumner",
       fields: {
+        layerName: layerNameField,
         count: {
           type: "select",
           label: "Antal kolumner",
@@ -374,7 +397,7 @@ export const pageConfig: PageConfig = {
         third: { type: "slot", label: "Kolumn 3" },
         fourth: { type: "slot", label: "Kolumn 4" },
       },
-      defaultProps: { count: 2, ratio: "1:1", widths: [], left: [], right: [], third: [], fourth: [] },
+      defaultProps: { layerName: "", count: 2, ratio: "1:1", widths: [], left: [], right: [], third: [], fourth: [] },
       render: ({ count, ratio, widths, left: First, right: Second, third: Third, fourth: Fourth }) => (
         <Columns
           count={count}
@@ -387,6 +410,7 @@ export const pageConfig: PageConfig = {
     Spacer: {
       label: "Mellanrum",
       fields: {
+        layerName: layerNameField,
         size: {
           type: "select",
           label: "Storlek",
@@ -398,7 +422,7 @@ export const pageConfig: PageConfig = {
         },
         height: { type: "number", label: "Höjd i pixlar (0 = enligt storlek)", min: 0, max: 800, step: 4 },
       },
-      defaultProps: { size: "md", height: 0 },
+      defaultProps: { layerName: "", size: "md", height: 0 },
       render: ({ size, height }) => <Spacer size={size} height={height} />,
     },
   },
@@ -422,6 +446,7 @@ export function starterPage(title = "Min hemsida"): PageData {
         props: {
           id: "text-1",
           content: "<p>Berätta om er verksamhet här. Klicka på blocket för att redigera.</p>",
+          layerName: "",
           color: "",
           font: "",
           typography: DEFAULT_TYPOGRAPHY,

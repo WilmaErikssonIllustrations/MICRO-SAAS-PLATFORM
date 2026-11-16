@@ -5,18 +5,21 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { pageConfig } from "@/lib/page/config";
 import { addBlock, BLOCKS, BlockIcon } from "./block-tile";
+import { LayersPanel } from "./layers-panel";
 
 // The icons in Puck's left rail, without text labels (names show as
 // tooltips). The "blocks" item becomes a plus that opens a dropdown of
-// everything that can be added, instead of a side panel.
+// everything that can be added, instead of a side panel, and the outline
+// becomes the Lager panel, where blocks can be renamed.
 
 export const sideRailPlugins: Plugin[] = [
   { ...blocksPlugin(), label: "", icon: <AddBlockButton /> },
   {
     ...outlinePlugin(),
     label: "",
+    render: () => <LayersPanel />,
     icon: (
-      <span title="Struktur" className="block size-full">
+      <span title="Lager" className="block size-full">
         <RailIcon>
           <path d="M12.8 2.2a2 2 0 0 0-1.6 0L2.6 6.1a1 1 0 0 0 0 1.8l8.6 3.9a2 2 0 0 0 1.6 0l8.6-3.9a1 1 0 0 0 0-1.8z" />
           <path d="M2 12a1 1 0 0 0 .6.9l8.6 3.9a2 2 0 0 0 1.6 0l8.6-3.9A1 1 0 0 0 22 12" />
