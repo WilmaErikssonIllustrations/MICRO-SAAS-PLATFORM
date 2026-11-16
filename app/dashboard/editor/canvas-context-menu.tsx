@@ -170,8 +170,8 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
   const { index, zone } = selector;
   const component = puck.config.components[item.type];
   const fields = Object.entries(component?.fields ?? {}) as [string, Field][];
-  // Fields of one part of the block (metadata.part) come first when that
-  // part was clicked, so a change there only affects that part. The rest
+  // Fields of one part of the block (metadata.part) are all a right-click
+  // on that part shows, so a change there only affects that part. The rest
   // apply to the whole block.
   const partOf = (field: Field) => field.metadata?.part as string | undefined;
   const partFields = part ? fields.filter(([, field]) => partOf(field) === part) : [];
@@ -181,6 +181,40 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
     action();
     close();
   };
+
+  // A right-click on a part (e.g. the hero's title) shows only that part.
+  if (partFields.length > 0) {
+    const blockName = layerLabel(puck, item);
+    return (
+      <>
+        <MenuHeader>{`${blockName} › ${PART_LABELS[part ?? ""] ?? part}`}</MenuHeader>
+        {partFields.map(([name, field]) => (
+          <FieldItem
+            key={name}
+            name={name}
+            field={field}
+            value={item.props[name]}
+            block={{ id, props: item.props }}
+            optionalColor
+            onChange={(value) => updateBlockProps(getPuck(), id, { [name]: value })}
+            close={close}
+          />
+        ))}
+        <MenuDivider />
+        <MenuItem
+          label={`Alla inställningar för ${blockName}`}
+          icon={<Icon><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></Icon>}
+          onSelect={() =>
+            run(() => {
+              // The side panel then shows the whole block, not the part.
+              setActivePart(null);
+              puck.dispatch({ type: "setUi", ui: { itemSelector: selector, rightSideBarVisible: true } });
+            })
+          }
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -197,25 +231,6 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
         }
       />
       <MenuDivider />
-      {partFields.length > 0 && (
-        <>
-          <MenuHeader>{PART_LABELS[part ?? ""] ?? part}</MenuHeader>
-          {partFields.map(([name, field]) => (
-            <FieldItem
-              key={name}
-              name={name}
-              field={field}
-              value={item.props[name]}
-              block={{ id, props: item.props }}
-              optionalColor
-              onChange={(value) => updateBlockProps(getPuck(), id, { [name]: value })}
-              close={close}
-            />
-          ))}
-          <MenuDivider />
-          <MenuHeader>{`Hela ${(component?.label ?? item.type).toLowerCase()}n`}</MenuHeader>
-        </>
-      )}
       {blockFields.map(([name, field]) => (
         <FieldItem
           key={name}

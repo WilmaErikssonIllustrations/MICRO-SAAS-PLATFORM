@@ -50,7 +50,16 @@ export function Menu({
 
   return (
     <MenuContext.Provider value={{ openId, setOpenId, flip }}>
-      <div ref={menuRef} className="fixed z-1000" style={{ left, top: y }}>
+      {/*
+        The menu is a React portal from inside Puck's preview, so React would
+        pass its clicks on to the preview, which deselects the block.
+      */}
+      <div
+        ref={menuRef}
+        className="fixed z-1000"
+        style={{ left, top: y }}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div
           ref={panelRef}
           role="menu"
