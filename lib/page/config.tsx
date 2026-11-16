@@ -86,9 +86,9 @@ export const pageConfig: PageConfig = {
       label: "Hero",
       fields: {
         image: imageField("Bakgrundsbild (valfri)"),
-        title: { type: "text", label: "Rubrik" },
-        subtitle: { type: "textarea", label: "Underrubrik" },
-        ctaText: { type: "text", label: "Knapptext" },
+        title: { type: "text", label: "Rubrik", contentEditable: true },
+        subtitle: { type: "textarea", label: "Underrubrik", contentEditable: true },
+        ctaText: { type: "text", label: "Knapptext", contentEditable: true },
         ctaLink: { type: "text", label: "Knapplänk", metadata: { kind: "url" } },
         background: {
           type: "radio",
@@ -115,7 +115,7 @@ export const pageConfig: PageConfig = {
     Heading: {
       label: "Rubrik",
       fields: {
-        text: { type: "text", label: "Text" },
+        text: { type: "text", label: "Text", contentEditable: true },
         level: {
           type: "select",
           label: "Storlek",
@@ -156,7 +156,7 @@ export const pageConfig: PageConfig = {
     Button: {
       label: "Knapp",
       fields: {
-        label: { type: "text", label: "Text" },
+        label: { type: "text", label: "Text", contentEditable: true },
         href: { type: "text", label: "Länk", metadata: { kind: "url" } },
         variant: {
           type: "radio",

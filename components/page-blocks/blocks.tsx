@@ -3,6 +3,9 @@ import { getContrastText } from "@/lib/color";
 
 // Presentational building blocks for published pages. They hold no state,
 // so they render both in the Puck editor and in Server Components.
+// Text fields marked `contentEditable` in lib/page/config.tsx arrive as
+// inline-editable elements in the editor and as plain strings elsewhere,
+// so render them as children and don't treat them as strings.
 
 type Align = "left" | "center";
 
