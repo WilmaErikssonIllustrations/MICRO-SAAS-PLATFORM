@@ -14,6 +14,15 @@ const alignClass: Record<Align, string> = {
   center: "items-center text-center",
 };
 
+/**
+ * Sets the theme color variables the blocks read. Blocks with their own
+ * color (an empty string means "use the theme") override them locally.
+ */
+function themeStyle(color: string | undefined) {
+  if (!color) return undefined;
+  return { "--theme": color, "--theme-contrast": getContrastText(color) } as CSSProperties;
+}
+
 export function SiteRoot({
   title,
   themeColor,
@@ -23,13 +32,8 @@ export function SiteRoot({
   themeColor: string;
   children: ReactNode;
 }) {
-  const style = {
-    "--theme": themeColor,
-    "--theme-contrast": getContrastText(themeColor),
-  } as CSSProperties;
-
   return (
-    <div style={style} className="flex min-h-full flex-col bg-white text-zinc-900">
+    <div style={themeStyle(themeColor)} className="flex min-h-full flex-col bg-white text-zinc-900">
       <main className="flex-1">{children}</main>
       <footer className="border-t border-zinc-200">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-1 px-6 py-8 text-center text-sm text-zinc-500">
@@ -54,6 +58,8 @@ export type HeroProps = {
   ctaText: string;
   ctaLink: string;
   background: keyof typeof heroBackground;
+  /** Overrides `background` when set. Empty means unset. */
+  backgroundColor: string;
   align: Align;
 };
 
@@ -67,12 +73,16 @@ export function Hero({
   ctaText,
   ctaLink,
   background,
+  backgroundColor,
   align,
   imageControls,
 }: HeroProps & ImageControls) {
+  // A custom color works like the theme background, in that color.
+  const shade = backgroundColor ? "theme" : background;
   return (
     <section
-      className={`group relative isolate ${image ? "bg-zinc-900 text-white" : heroBackground[background]}`}
+      style={image ? undefined : themeStyle(backgroundColor)}
+      className={`group relative isolate ${image ? "bg-zinc-900 text-white" : heroBackground[shade]}`}
     >
       {image && (
         <>
@@ -94,7 +104,7 @@ export function Hero({
         {ctaText && (
           <ButtonLink
             href={ctaLink || "#"}
-            variant={background === "theme" && !image ? "inverted" : "filled"}
+            variant={shade === "theme" && !image ? "inverted" : "filled"}
           >
             {ctaText}
           </ButtonLink>
@@ -104,12 +114,13 @@ export function Hero({
   );
 }
 
-export type HeadingProps = { text: string; level: "h2" | "h3"; align: Align };
+export type HeadingProps = { text: string; level: "h2" | "h3"; align: Align; color: string };
 
-export function Heading({ text, level: Tag, align }: HeadingProps) {
+export function Heading({ text, level: Tag, align, color }: HeadingProps) {
   return (
     <div className={`mx-auto flex max-w-3xl flex-col px-6 pt-12 ${alignClass[align]}`}>
       <Tag
+        style={color ? { color } : undefined}
         className={
           Tag === "h2"
             ? "text-3xl font-bold tracking-tight"
@@ -122,9 +133,12 @@ export function Heading({ text, level: Tag, align }: HeadingProps) {
   );
 }
 
-export function TextBlock({ content }: { content: ReactNode }) {
+export function TextBlock({ content, color }: { content: ReactNode; color?: string }) {
   return (
-    <div className="mx-auto max-w-3xl px-6 py-6 text-lg leading-relaxed text-zinc-700 [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-zinc-900 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic">
+    <div
+      style={color ? { color } : undefined}
+      className="mx-auto max-w-3xl px-6 py-6 text-lg leading-relaxed text-zinc-700 [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-zinc-900 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic"
+    >
       {content}
     </div>
   );
@@ -135,12 +149,13 @@ export type ButtonProps = {
   href: string;
   variant: "filled" | "outline";
   align: Align;
+  color: string;
 };
 
-export function Button({ label, href, variant, align }: ButtonProps) {
+export function Button({ label, href, variant, align, color }: ButtonProps) {
   if (!label) return null;
   return (
-    <div className={`mx-auto flex max-w-3xl flex-col px-6 pb-6 ${alignClass[align]}`}>
+    <div style={themeStyle(color)} className={`mx-auto flex max-w-3xl flex-col px-6 pb-6 ${alignClass[align]}`}>
       <ButtonLink href={href || "#"} variant={variant}>
         {label}
       </ButtonLink>

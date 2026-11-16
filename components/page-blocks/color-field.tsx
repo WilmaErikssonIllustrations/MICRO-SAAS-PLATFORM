@@ -9,10 +9,12 @@ type ColorFieldProps = {
   value: string;
   onChange: (value: string) => void;
   readOnly?: boolean;
+  /** Allows an empty value, meaning "use the default color". */
+  optional?: boolean;
 };
 
 // Puck custom field: a color picker kept in sync with a hex text input.
-export function ColorField({ label, value, onChange, readOnly }: ColorFieldProps) {
+export function ColorField({ label, value, onChange, readOnly, optional }: ColorFieldProps) {
   return (
     <FieldLabel label={label} el="div">
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -27,11 +29,13 @@ export function ColorField({ label, value, onChange, readOnly }: ColorFieldProps
         <input
           type="text"
           value={value}
+          placeholder={optional ? "Standard" : undefined}
           onChange={(event) => onChange(event.target.value)}
           readOnly={readOnly}
           maxLength={7}
           style={{
             flex: 1,
+            minWidth: 0,
             height: 36,
             padding: "0 10px",
             border: "1px solid #d4d4d8",
@@ -39,6 +43,15 @@ export function ColorField({ label, value, onChange, readOnly }: ColorFieldProps
             fontFamily: "monospace",
           }}
         />
+        {optional && value && !readOnly && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            style={{ background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontSize: 13 }}
+          >
+            Återställ
+          </button>
+        )}
       </div>
     </FieldLabel>
   );
