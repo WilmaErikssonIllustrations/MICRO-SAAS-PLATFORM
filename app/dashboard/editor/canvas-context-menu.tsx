@@ -45,7 +45,9 @@ import {
   Swatch,
   TextInput,
 } from "./context-menu-ui";
+import { PART_LABELS, partAt, setActivePart } from "./active-part";
 import { layerLabel, renameLayer } from "./layers-panel";
+import { PartTracker } from "./part-fields";
 import { ResizeHandles } from "./resize-handles";
 
 const usePuck = createUsePuck<PageConfig>();
@@ -58,7 +60,6 @@ const usePuck = createUsePuck<PageConfig>();
  */
 type MenuTarget = { x: number; y: number; id: string | null; part: string | null };
 
-const PART_LABELS: Record<string, string> = { title: "Rubrik", subtitle: "Underrubrik", cta: "Knapp" };
 
 // Survives closing the menu, so a copied block can be pasted elsewhere.
 let clipboard: ComponentData | null = null;
@@ -69,6 +70,7 @@ export function PreviewFrame({ children, document: doc }: { children: ReactNode;
   return (
     <>
       <CanvasContextMenu doc={doc} />
+      <PartTracker doc={doc} />
       <ResizeHandles doc={doc} />
       {children}
     </>
@@ -94,15 +96,10 @@ function CanvasContextMenu({ doc }: { doc?: Document }) {
       if (element?.closest("[contenteditable='true']") && selection && !selection.isCollapsed) return;
       event.preventDefault();
 
-      const blockElement = element?.closest("[data-puck-component]");
-      const id = blockElement?.getAttribute("data-puck-component") ?? null;
+      const { id, part } = partAt(element);
       const selector = id ? getPuck().getSelectorForId(id) : undefined;
-      // Only a part of this block, not of a block nested inside it.
-      const partElement = element?.closest("[data-part]");
-      const part =
-        partElement && partElement.closest("[data-puck-component]") === blockElement
-          ? partElement.getAttribute("data-part")
-          : null;
+      // The side panel follows the clicked part too.
+      setActivePart(id && part ? { id, part } : null);
       getPuck().dispatch({ type: "setUi", ui: { itemSelector: selector ?? null } });
 
       // The preview is scaled to fit, so map iframe coordinates to the page.

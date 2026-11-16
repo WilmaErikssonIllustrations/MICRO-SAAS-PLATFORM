@@ -4,6 +4,7 @@ import { ActionBar, type ComponentData, createUsePuck, type Field, useGetPuck } 
 import { type DragEvent, type ReactNode, useState } from "react";
 import { type PuckApi, ROOT_ZONE, updateBlockProps } from "@/components/page-blocks/update-block";
 import type { PageConfig } from "@/lib/page/config";
+import { setActivePart } from "./active-part";
 import { BlockIcon } from "./block-tile";
 
 const usePuck = createUsePuck<PageConfig>();
@@ -116,7 +117,11 @@ function LayerRow({
   const slots = slotsOf(puck, item);
   const isTarget = dnd.dropTarget?.zone === zone && dnd.dropTarget.index === index;
 
-  const select = () => getPuck().dispatch({ type: "setUi", ui: { itemSelector: { index, zone } } });
+  const select = () => {
+    // A whole block, not a part of it (see part-fields.tsx).
+    setActivePart(null);
+    getPuck().dispatch({ type: "setUi", ui: { itemSelector: { index, zone } } });
+  };
 
   function onDragOver(event: DragEvent) {
     if (!dnd.dragging) return;

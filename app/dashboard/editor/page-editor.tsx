@@ -10,6 +10,7 @@ import { BlockTile } from "./block-tile";
 import { PreviewFrame } from "./canvas-context-menu";
 import { EditorShell } from "./image-editor";
 import { NamedActionBar } from "./layers-panel";
+import { PartFields } from "./part-fields";
 import { sideRailPlugins } from "./side-rail";
 import { svDictionary } from "./dictionary";
 import { EditorTopBar, type LastAction } from "./editor-top-bar";
@@ -123,6 +124,7 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
         iframe: PreviewFrame,
         puck: EditorShell,
         actionBar: NamedActionBar,
+        fields: PartFields,
       }}
     />
   );
