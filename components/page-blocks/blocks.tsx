@@ -99,6 +99,32 @@ const heroBackground = {
 // Optional tint over a hero image, to make white text easier to read.
 const heroOverlay = { none: "", light: "bg-black/25", dark: "bg-black/50" } as const;
 
+/**
+ * How the hero lays out its image: filling the hero ("cover"), at the
+ * image's own proportions ("whole") or above the text ("stack", phones
+ * only). Tailwind needs complete class names, so there is one map for
+ * phones and one for `sm` and up; each desktop class overrides its phone
+ * counterpart.
+ */
+const heroPhoneLayout = {
+  cover: { section: "flex flex-col", image: "absolute inset-0 h-full", content: "flex-1 py-24" },
+  whole: {
+    section: "grid",
+    image: "static col-start-1 row-start-1 h-auto self-stretch",
+    content: "col-start-1 row-start-1 py-10",
+  },
+  stack: { section: "flex flex-col", image: "static h-auto", content: "py-12" },
+} as const;
+
+const heroDesktopLayout = {
+  cover: { section: "sm:flex sm:flex-col", image: "sm:absolute sm:inset-0 sm:h-full", content: "sm:flex-1 sm:py-24" },
+  whole: {
+    section: "sm:grid",
+    image: "sm:static sm:col-start-1 sm:row-start-1 sm:h-auto sm:self-stretch",
+    content: "sm:col-start-1 sm:row-start-1 sm:py-24",
+  },
+} as const;
+
 export type HeroProps = {
   image: string;
   title: string;
@@ -117,6 +143,11 @@ export type HeroProps = {
   heroHeightUnit: HeightUnit;
   /** "whole" sizes the hero to the image so none of it is cropped. */
   imageFit: "cover" | "whole";
+  /**
+   * The image on phones, where a tall hero would crop a wide image hard.
+   * Missing on older pages, which then show the whole image too.
+   */
+  mobileFit: "whole" | "stack" | "same";
   /** Button colors; empty means picked from the background. */
   buttonColor: string;
   buttonTextColor: string;
@@ -199,6 +230,7 @@ export function Hero({
   heroHeight,
   heroHeightUnit,
   imageFit,
+  mobileFit,
   buttonColor,
   buttonTextColor,
   align,
@@ -208,8 +240,19 @@ export function Hero({
 }: HeroProps & ImageControls) {
   const tint = heroOverlay[overlay] ?? "";
   // The whole image: the image and the content share one grid cell, so the
-  // hero is as tall as the image (or the content, if that's taller).
-  const whole = Boolean(image) && imageFit === "whole" && !heroHeight;
+  // hero is as tall as the image (or the content, if that's taller). A set
+  // height wins over it.
+  const desktop = image && imageFit === "whole" && !heroHeight ? "whole" : "cover";
+  const phoneChoice = mobileFit ?? "whole";
+  const phone = !image || phoneChoice === "same" ? desktop : phoneChoice;
+  // The chosen height applies where the image fills the hero.
+  const height = heroHeight ? cssHeight(heroHeight, heroHeightUnit) : undefined;
+  const sectionHeight = `${phone === "cover" && height ? "min-h-(--hero-h)" : ""} ${
+    desktop === "cover" && height ? "sm:min-h-(--hero-h)" : "sm:min-h-0"
+  }`;
+  const contentHeight = `${phone === "cover" && !height ? "min-h-[60vh]" : "min-h-0"} ${
+    desktop === "cover" && !height ? "sm:min-h-[60vh]" : "sm:min-h-0"
+  }`;
   // A custom color works like the theme background, in that color.
   const shade = backgroundColor ? "theme" : background;
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
@@ -222,9 +265,11 @@ export function Hero({
         ...(image ? undefined : themeStyle(backgroundColor)),
         ...fontStyle,
         ...typographyVars(typography),
-        minHeight: heroHeight ? cssHeight(heroHeight, heroHeightUnit) : undefined,
+        ...(height && { "--hero-h": typeof height === "number" ? `${height}px` : height }),
       }}
-      className={`group relative isolate overflow-hidden ${whole ? "grid" : "flex flex-col"} ${
+      className={`group relative isolate overflow-hidden ${heroPhoneLayout[phone].section} ${
+        heroDesktopLayout[desktop].section
+      } ${sectionHeight} ${
         image
           ? // Without a dark tint, a soft shadow keeps the white text readable.
             `bg-zinc-900 text-white ${overlay === "dark" ? "" : "[text-shadow:0_1px_12px_rgb(0_0_0/0.45)]"}`
@@ -239,20 +284,16 @@ export function Hero({
             src={image}
             alt=""
             style={imageEditStyle(imageEdit)}
-            className={
-              whole
-                ? "col-start-1 row-start-1 -z-10 h-auto w-full self-stretch object-cover"
-                : "absolute inset-0 -z-10 h-full w-full object-cover"
-            }
+            className={`-z-10 w-full object-cover ${heroPhoneLayout[phone].image} ${heroDesktopLayout[desktop].image}`}
           />
           {tint && <div className={`absolute inset-0 -z-10 ${tint}`} />}
         </>
       )}
       {imageControls && <HoverControls>{imageControls}</HoverControls>}
       <div
-        className={`mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-6 py-24 ${
-          whole ? "col-start-1 row-start-1" : heroHeight ? "" : "min-h-[60vh]"
-        } ${alignClass[align]}`}
+        className={`mx-auto flex w-full max-w-5xl flex-col justify-center px-6 ${heroPhoneLayout[phone].content} ${
+          heroDesktopLayout[desktop].content
+        } ${contentHeight} ${alignClass[align]}`}
       >
         <h1 data-resize-box className="max-w-3xl text-[length:calc(2.25rem*var(--fs,1))] leading-(--lh,1.11) font-bold tracking-(--ls,-0.025em) text-balance sm:text-[length:calc(3.75rem*var(--fs,1))] sm:leading-(--lh,1)">
           {title}

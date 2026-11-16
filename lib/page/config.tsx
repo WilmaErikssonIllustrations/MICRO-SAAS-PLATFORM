@@ -245,6 +245,15 @@ export const pageConfig: PageConfig = {
             { label: "Visa hela bilden", value: "whole" },
           ],
         },
+        mobileFit: {
+          type: "radio",
+          label: "På mobil",
+          options: [
+            { label: "Visa hela bilden", value: "whole" },
+            { label: "Bilden ovanför texten", value: "stack" },
+            { label: "Samma som på datorn", value: "same" },
+          ],
+        },
         heroHeightUnit: {
           type: "radio",
           label: "Höjdenhet",
@@ -303,6 +312,7 @@ export const pageConfig: PageConfig = {
         imageEdit: DEFAULT_IMAGE_EDIT,
         overlay: "none",
         imageFit: "cover",
+        mobileFit: "whole",
         heroHeight: 0,
         heroHeightUnit: "px",
         buttonColor: "",
