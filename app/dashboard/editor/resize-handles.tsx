@@ -18,11 +18,12 @@ const usePuck = createUsePuck<PageConfig>();
 //   height  - Mellanrum: the height in pixels (bottom edge)
 //   text    - Hero, Rubrik, Text, Knapp: the text size (corner)
 //   columns - Kolumner: the widths of two neighboring columns (dividers)
+//   box     - Sektion: only its background box (below)
 // Blocks mark the element to put handles on with `data-resize-box`.
 // Blocks with a background box (BlockBackground, `data-box`) also get
 // filled handles for the box's width and height.
 
-type Mode = "width" | "height" | "text" | "columns";
+type Mode = "width" | "height" | "text" | "columns" | "box";
 
 const MODES: Partial<Record<string, Mode>> = {
   Image: "width",
@@ -32,6 +33,7 @@ const MODES: Partial<Record<string, Mode>> = {
   Text: "text",
   Button: "text",
   Columns: "columns",
+  Section: "box",
 };
 
 /** A rectangle in document coordinates, and the width available to it. */
@@ -127,7 +129,7 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
     <div style={{ position: "absolute", left: 0, top: 0, zIndex: 2147483000 }}>
       {visible && (
         <>
-          {mode !== "columns" && (
+          {mode !== "columns" && mode !== "box" && (
             <div
               aria-hidden
               className="pointer-events-none absolute border border-dashed border-violet-500/70"

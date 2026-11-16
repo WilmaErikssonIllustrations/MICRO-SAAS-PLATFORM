@@ -5,6 +5,7 @@ import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from "r
 import { createPortal } from "react-dom";
 import { useImageEditor } from "@/components/page-blocks/image-editor-context";
 import { BoxControls, boxSummary } from "@/components/page-blocks/box-field";
+import { setColumnColor } from "@/components/page-blocks/column-colors-field";
 import { columnWidthsSummary } from "@/components/page-blocks/column-widths-field";
 import {
   resolveBasePx,
@@ -209,6 +210,8 @@ function BlockMenu({ id, close }: { id: string; close: () => void }) {
         }
       />
       <MenuDivider />
+      <ContainerItems id={id} zone={zone} close={close} />
+      <MenuDivider />
       <MenuItem
         label="Lägg till block under"
         icon={<Icon><path d="M12 5v14M5 12h14" /></Icon>}
@@ -298,6 +301,101 @@ function PageMenu({ close }: { close: () => void }) {
       />
     </>
   );
+}
+
+// Slot names of Kolumner, in column order.
+const COLUMN_SLOTS = ["left", "right", "third", "fourth"];
+
+/**
+ * Settings of the container a block is in, so its background can be
+ * changed from the block: the Sektion, or the column and the whole
+ * Kolumner. Any block can also be put into a new Sektion.
+ */
+function ContainerItems({ id, zone, close }: { id: string; zone: string; close: () => void }) {
+  const getPuck = useGetPuck();
+  usePuck((s) => s.appState.data);
+  const puck = getPuck();
+  const [parentId, slot] = zone.split(":");
+  const parent = parentId === "root" ? undefined : puck.getItemById(parentId);
+  const parentProps = (parent?.props ?? {}) as Record<string, unknown>;
+  const color = (value: unknown) => (typeof value === "string" ? value : "");
+  const setParent = (patch: Record<string, unknown>) => updateBlockProps(getPuck(), parentId, patch);
+  const selectParent = () => {
+    const selector = getPuck().getSelectorForId(parentId);
+    if (selector) getPuck().dispatch({ type: "setUi", ui: { itemSelector: selector } });
+    close();
+  };
+  const paletteIcon = <Icon><rect x="4" y="5" width="16" height="14" rx="3" /><path d="M4 10h16" /></Icon>;
+  const selectIcon = <Icon><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4" /></Icon>;
+
+  return (
+    <>
+      {parent?.type === "Section" && (
+        <>
+          <MenuItem
+            label="Sektionens bakgrundsfärg"
+            icon={paletteIcon}
+            hint={<Swatch color={color(parentProps.bgColor)} />}
+            submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
+          />
+          <MenuItem label="Markera sektionen" icon={selectIcon} onSelect={selectParent} />
+        </>
+      )}
+      {parent?.type === "Columns" && (
+        <>
+          <MenuItem
+            label="Kolumnens bakgrundsfärg"
+            icon={paletteIcon}
+            hint={<Swatch color={color((parentProps.columnColors as string[] | undefined)?.[COLUMN_SLOTS.indexOf(slot)])} />}
+            submenu={
+              <ColorPicker
+                value={color((parentProps.columnColors as string[] | undefined)?.[COLUMN_SLOTS.indexOf(slot)])}
+                optional
+                onChange={(value) =>
+                  setParent({
+                    columnColors: setColumnColor(parentProps.columnColors as string[] | undefined, COLUMN_SLOTS.indexOf(slot), value),
+                  })
+                }
+              />
+            }
+          />
+          <MenuItem
+            label="Kolumners bakgrundsfärg"
+            icon={paletteIcon}
+            hint={<Swatch color={color(parentProps.bgColor)} />}
+            submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
+          />
+          <MenuItem label="Markera Kolumner" icon={selectIcon} onSelect={selectParent} />
+        </>
+      )}
+      <MenuItem
+        label="Lägg i sektion"
+        icon={<Icon><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M7 9h10M7 13h6" /></Icon>}
+        onSelect={() => {
+          wrapInSection(getPuck, id);
+          close();
+        }}
+      />
+    </>
+  );
+}
+
+/** Puts a block into a new Sektion at its place, and selects the Sektion. */
+function wrapInSection(getPuck: () => PuckApi, id: string) {
+  const selector = getPuck().getSelectorForId(id);
+  if (!selector) return;
+  const sectionId = `Section-${crypto.randomUUID()}`;
+  const { dispatch } = getPuck();
+  dispatch({ type: "insert", componentType: "Section", destinationIndex: selector.index, destinationZone: selector.zone, id: sectionId });
+  // The new Sektion pushed the block one step down.
+  dispatch({
+    type: "move",
+    sourceIndex: selector.index + 1,
+    sourceZone: selector.zone,
+    destinationIndex: 0,
+    destinationZone: `${sectionId}:content`,
+  });
+  dispatch({ type: "setUi", ui: { itemSelector: { index: selector.index, zone: selector.zone } } });
 }
 
 /** The page's theme color, reachable from every block's menu. */
@@ -488,6 +586,26 @@ function FieldItem({
             icon={<Icon><rect x="4" y="5" width="16" height="14" rx="3" /></Icon>}
             hint={boxSummary(box)}
             submenu={<BoxControls value={box} onChange={onChange} />}
+          />
+        );
+      }
+      if (kind === "colorList") {
+        const colors = Array.isArray(value) ? (value as string[]) : [];
+        const columns = typeof block?.props.count === "number" ? block.props.count : 2;
+        return (
+          <MenuItem
+            label={label}
+            icon={<Icon><path d="M4 5v14M12 5v14M20 5v14" /></Icon>}
+            submenu={Array.from({ length: columns }, (_, index) => (
+              <div key={index} className="mb-1">
+                <MenuHeader>{`Kolumn ${index + 1}`}</MenuHeader>
+                <ColorPicker
+                  value={colors[index] ?? ""}
+                  optional
+                  onChange={(color) => onChange(setColumnColor(colors, index, color))}
+                />
+              </div>
+            ))}
           />
         );
       }

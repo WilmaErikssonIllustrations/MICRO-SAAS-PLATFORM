@@ -119,6 +119,16 @@ export type HeroProps = {
   typography: Typography;
 };
 
+/** A background color, with light text when the color is dark. */
+function backgroundColorStyle(color: string | undefined): CSSProperties | undefined {
+  if (!color) return undefined;
+  const light = getContrastText(color) === "#ffffff";
+  return {
+    backgroundColor: color,
+    ...(light && { color: "#ffffff", "--block-text": "rgb(255 255 255 / 0.85)", "--block-heading": "#ffffff" }),
+  } as CSSProperties;
+}
+
 export type BackgroundProps = {
   /** Empty means no background (the page shows through). */
   bgColor: string;
@@ -147,12 +157,7 @@ export function BlockBackground({
   children,
 }: Partial<BackgroundProps> & { children: ReactNode }) {
   if (!hasBackground({ bgColor, bgImage, bgBox })) return children;
-  const light = bgColor && getContrastText(bgColor) === "#ffffff";
-  const style = {
-    ...boxStyle(bgBox),
-    backgroundColor: bgColor || undefined,
-    ...(light && { color: "#ffffff", "--block-text": "rgb(255 255 255 / 0.85)", "--block-heading": "#ffffff" }),
-  } as CSSProperties;
+  const style = { ...boxStyle(bgBox), ...backgroundColorStyle(bgColor) } as CSSProperties;
   return (
     <div style={boxRowStyle(bgBox)}>
       <div data-box style={style} className="relative isolate overflow-hidden">
@@ -165,7 +170,8 @@ export function BlockBackground({
             className="absolute inset-0 -z-10 h-full w-full object-cover"
           />
         )}
-        {children}
+        {/* Full width, so blocks centered with mx-auto keep their width in the flex box. */}
+        <div className="w-full">{children}</div>
       </div>
     </div>
   );
@@ -406,11 +412,14 @@ export function Columns({
   count,
   ratio,
   widths,
+  columnColors,
   columns,
 }: {
   count: number;
   ratio?: ColumnsRatio;
   widths?: number[];
+  /** A background color per column; empty means none. */
+  columnColors?: string[];
   columns: ReactNode[];
 }) {
   const fractions = columnFractions(count, ratio, widths);
@@ -418,11 +427,18 @@ export function Columns({
   const style = { "--cols": fractions.map((f) => `minmax(0,${f}fr)`).join(" ") } as CSSProperties;
   return (
     <div data-resize-box style={style} className="mx-auto grid max-w-5xl gap-8 px-6 py-6 md:grid-cols-(--cols)">
-      {columns.slice(0, fractions.length).map((column, index) => (
-        <div key={index} className="min-w-0">
-          {column}
-        </div>
-      ))}
+      {columns.slice(0, fractions.length).map((column, index) => {
+        const color = columnColors?.[index];
+        return (
+          <div
+            key={index}
+            style={backgroundColorStyle(color)}
+            className={`min-w-0 ${color ? "rounded-xl pb-6" : ""}`}
+          >
+            {column}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -480,6 +496,15 @@ export function ImageBlock({ src, alt, width, widthPx, edit, imageControls }: Im
 function HoverControls({ children }: { children: ReactNode }) {
   return (
     <div className="absolute top-4 right-4 z-10 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      {children}
+    </div>
+  );
+}
+
+/** A container for other blocks; its background (BlockBackground) covers them all. */
+export function Section({ children }: { children: ReactNode }) {
+  return (
+    <div data-resize-box className="py-6">
       {children}
     </div>
   );

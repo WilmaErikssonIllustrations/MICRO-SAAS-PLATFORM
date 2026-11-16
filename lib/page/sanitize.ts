@@ -43,6 +43,12 @@ export function isSafeUrl(value: string) {
 
 type Props = Record<string, unknown>;
 
+/** One color (or "" for none) per column. */
+function sanitizeColorList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 4).map((color) => (typeof color === "string" && HEX_COLOR.test(color) ? color : ""));
+}
+
 /** Relative column widths (percent); anything odd means equal columns. */
 function sanitizeColumnWidths(value: unknown): number[] {
   if (!Array.isArray(value) || value.length < 2 || value.length > 4) return [];
@@ -95,6 +101,7 @@ function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: 
       if (kind === "imageEdit") return sanitizeImageEdit(value);
       if (kind === "typography") return sanitizeTypography(value);
       if (kind === "box") return sanitizeBox(value);
+      if (kind === "colorList") return sanitizeColorList(value);
       if (kind === "columnWidths") return sanitizeColumnWidths(value);
       if (kind === "font") return isFontValue(value) ? value : "";
       if (kind === "fontList") return sanitizeFontList(value);

@@ -15,6 +15,7 @@ import {
   type HeroProps,
   ImageBlock,
   type ImageProps,
+  Section,
   SiteRoot,
   Spacer,
   type SpacerSize,
@@ -23,6 +24,7 @@ import {
 import { BoxField } from "@/components/page-blocks/box-field";
 import { CanvasImagePicker } from "@/components/page-blocks/canvas-image-picker";
 import { ColorField } from "@/components/page-blocks/color-field";
+import { ColumnColorsField } from "@/components/page-blocks/column-colors-field";
 import { ColumnWidthsField } from "@/components/page-blocks/column-widths-field";
 import { FontField, FontListField } from "@/components/page-blocks/font-field";
 import { ImageEditField } from "@/components/page-blocks/image-edit-field";
@@ -54,12 +56,14 @@ type Components = {
     /** Two-column layouts from before `widths`; hidden in the editor. */
     ratio: ColumnsRatio;
     widths: number[];
+    columnColors: string[];
     left: Slot;
     right: Slot;
     third: Slot;
     fourth: Slot;
   }>;
   Spacer: Block<{ size: SpacerSize; height: number }>;
+  Section: Block<{ content: Slot }>;
 };
 
 export type RootProps = {
@@ -189,7 +193,7 @@ const layerNameField = {
 export const pageConfig: PageConfig = {
   categories: {
     content: { title: "Innehåll", components: ["Hero", "Heading", "Text", "Image", "Button"] },
-    layout: { title: "Layout", components: ["Columns", "Spacer"] },
+    layout: { title: "Layout", components: ["Section", "Columns", "Spacer"] },
   },
   root: {
     fields: {
@@ -444,6 +448,14 @@ export const pageConfig: PageConfig = {
             <ColumnWidthsField label={field.label ?? "Kolumnbredder"} value={value} onChange={onChange} />
           ),
         },
+        columnColors: {
+          type: "custom",
+          label: "Kolumnernas bakgrundsfärger",
+          metadata: { kind: "colorList" },
+          render: ({ field, value, onChange }) => (
+            <ColumnColorsField label={field.label ?? "Kolumnernas bakgrundsfärger"} value={value} onChange={onChange} />
+          ),
+        },
         // Slot names kept from the two-column version, so old pages still work.
         left: { type: "slot", label: "Kolumn 1" },
         right: { type: "slot", label: "Kolumn 2" },
@@ -452,16 +464,34 @@ export const pageConfig: PageConfig = {
         ...backgroundFields,
       },
       defaultProps: {
-        ...backgroundDefaults, layerName: "", count: 2, ratio: "1:1", widths: [], left: [], right: [], third: [], fourth: [] },
-      render: ({ count, ratio, widths, left: First, right: Second, third: Third, fourth: Fourth, ...props }) =>
+        ...backgroundDefaults, layerName: "", count: 2, ratio: "1:1", widths: [], columnColors: [], left: [], right: [], third: [], fourth: [] },
+      render: ({ count, ratio, widths, columnColors, left: First, right: Second, third: Third, fourth: Fourth, ...props }) =>
         withBackground(
           props,
           <Columns
             count={count}
             ratio={ratio}
             widths={widths}
+            columnColors={columnColors}
             columns={[<First key="1" />, <Second key="2" />, <Third key="3" />, <Fourth key="4" />]}
           />,
+        ),
+    },
+    Section: {
+      label: "Sektion",
+      fields: {
+        layerName: layerNameField,
+        content: { type: "slot", label: "Innehåll" },
+        ...backgroundFields,
+      },
+      // A light background, so a new section is visible right away.
+      defaultProps: { layerName: "", content: [], ...backgroundDefaults, bgColor: "#f4f4f5" },
+      render: ({ content: Content, ...props }) =>
+        withBackground(
+          props,
+          <Section>
+            <Content />
+          </Section>,
         ),
     },
     Spacer: {

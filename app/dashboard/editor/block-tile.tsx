@@ -38,6 +38,16 @@ export const BLOCKS: Record<string, { label: string; hint: string; icon: ReactNo
       </>
     ),
   },
+  Section: {
+    label: "Sektion",
+    hint: "Grupp av block med egen bakgrund",
+    icon: (
+      <>
+        <rect x="3" y="4" width="18" height="16" rx="3" />
+        <path d="M7 9h10M7 13h6" />
+      </>
+    ),
+  },
   Columns: {
     label: "Kolumner",
     hint: "Två block bredvid varandra",
