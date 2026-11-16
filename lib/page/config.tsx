@@ -245,7 +245,23 @@ export const pageConfig: PageConfig = {
             { label: "Visa hela bilden", value: "whole" },
           ],
         },
-        heroHeight: { type: "number", label: "Höjd i pixlar (0 = automatisk)", min: 0, max: 2000, step: 10 },
+        heroHeightUnit: {
+          type: "radio",
+          label: "Höjdenhet",
+          options: [
+            { label: "Pixlar", value: "px" },
+            { label: "% av skärmhöjden", value: "vh" },
+          ],
+        },
+        heroHeight: {
+          type: "number",
+          label: "Höjd (0 = automatisk)",
+          min: 0,
+          max: 2000,
+          step: 10,
+          // The menu shows the unit chosen in heroHeightUnit.
+          metadata: { unitProp: "heroHeightUnit" },
+        },
         overlay: {
           type: "radio",
           label: "Ton över bilden",
@@ -288,6 +304,7 @@ export const pageConfig: PageConfig = {
         overlay: "none",
         imageFit: "cover",
         heroHeight: 0,
+        heroHeightUnit: "px",
         buttonColor: "",
         buttonTextColor: "",
         align: "center",

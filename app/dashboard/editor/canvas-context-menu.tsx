@@ -444,17 +444,20 @@ function FieldItem({
   switch (field.type) {
     case "number": {
       const number = typeof value === "number" ? value : 0;
+      // A sibling prop can hold the unit (e.g. Hero's heroHeightUnit).
+      const unitProp = field.metadata?.unitProp as string | undefined;
+      const screenShare = unitProp && block?.props[unitProp] === "vh";
       return (
         <MenuItem
           label={label}
           icon={<Icon><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" /></Icon>}
-          hint={number > 0 ? `${number} px` : "Auto"}
+          hint={number > 0 ? `${number} ${screenShare ? "%" : "px"}` : "Auto"}
           submenu={
             <NumberInput
               value={number}
               min={field.min ?? 0}
-              max={field.max ?? 2000}
-              unit="px"
+              max={screenShare ? 200 : (field.max ?? 2000)}
+              unit={screenShare ? "% av skärmhöjden" : "px"}
               hint={field.label?.match(/\((.*)\)$/)?.[1]}
               onSave={(next) => {
                 onChange(next);

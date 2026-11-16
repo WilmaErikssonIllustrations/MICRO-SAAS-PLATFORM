@@ -41,12 +41,19 @@ const MODES: Partial<Record<string, Mode>> = {
 type Rect = { left: number; top: number; width: number; height: number; room: number };
 
 /** The content's handle box, its background box (if any) and column dividers (x positions). */
-type Box = Rect & { id: string; frame: Rect | null; section: (Rect & { prop: string }) | null; dividers: number[] };
+type Box = Rect & {
+  id: string;
+  frame: Rect | null;
+  section: (Rect & { prop: string; unitProp: string }) | null;
+  dividers: number[];
+  /** The preview's screen height, for sizes in % of it. */
+  screenHeight: number;
+};
 
 type Handle =
   | { kind: "left" | "right" | "bottom" | "corner" | "boxHeight" }
   | { kind: "boxWidth"; side: "left" | "right" }
-  | { kind: "sectionHeight"; prop: string }
+  | { kind: "sectionHeight"; prop: string; unitProp: string }
   | { kind: "divider"; index: number };
 
 const MIN_COLUMN_PERCENT = 10;
@@ -190,7 +197,10 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
               y={box.section.top + box.section.height}
               shape="horizontal"
               filled
-              {...handleProps({ kind: "sectionHeight", prop: box.section.prop }, "Dra för att ändra höjden")}
+              {...handleProps(
+                { kind: "sectionHeight", prop: box.section.prop, unitProp: box.section.unitProp },
+                "Dra för att ändra höjden",
+              )}
             />
           )}
           {readout && (
@@ -302,6 +312,7 @@ function measure(doc: Document, id: string, mode: Mode): Box | null {
         height: heightRect.height,
         room: heightRect.width,
         prop: heightElement.dataset.resizeHeight ?? "",
+        unitProp: heightElement.dataset.resizeUnit ?? "",
       }
     : null;
   const dividers: number[] = [];
@@ -324,6 +335,7 @@ function measure(doc: Document, id: string, mode: Mode): Box | null {
     frame,
     section,
     dividers,
+    screenHeight: win.innerHeight,
   };
 }
 
@@ -375,20 +387,34 @@ function dragResult(
       const factor = box.position === "center" ? 2 : 1;
       const direction = handle.side === "right" ? 1 : -1;
       const room = start.frame.room;
-      const width = Math.round(clamp(start.frame.width + factor * direction * dx, 60, room));
-      const fills = width >= room - 2;
-      return { patch: { bgBox: { ...box, width: fills ? 0 : width } }, readout: fills ? "Hela bredden" : `${width} px` };
+      const width = clamp(start.frame.width + factor * direction * dx, 60, room);
+      if (width >= room - 2) return { patch: { bgBox: { ...box, width: 0 } }, readout: "Hela bredden" };
+      // Keep the unit that's chosen: pixels or % of the screen (page) width.
+      if (box.widthUnit === "%") {
+        const share = Math.round((width / room) * 100);
+        return { patch: { bgBox: { ...box, width: share } }, readout: `${share} % av skärmbredden` };
+      }
+      return { patch: { bgBox: { ...box, width: Math.round(width) } }, readout: `${Math.round(width)} px` };
     }
     case "sectionHeight": {
       if (!start.section) return { patch: {}, readout: "" };
-      const height = Math.round(clamp(start.section.height + dy, 120, 2000));
-      return { patch: { [handle.prop]: height }, readout: `${height} px` };
+      const pixels = clamp(start.section.height + dy, 120, 2000);
+      // Keep the unit that's chosen: pixels or % of the screen height.
+      if (props[handle.unitProp] === "vh") {
+        const share = Math.round(clamp((pixels / start.screenHeight) * 100, 10, 200));
+        return { patch: { [handle.prop]: share }, readout: `${share} % av skärmhöjden` };
+      }
+      return { patch: { [handle.prop]: Math.round(pixels) }, readout: `${Math.round(pixels)} px` };
     }
     case "boxHeight": {
       if (!start.frame) return { patch: {}, readout: "" };
       const box = withBoxDefaults(props.bgBox as object | undefined);
-      const height = Math.round(clamp(start.frame.height + dy, 0, 1200));
-      return { patch: { bgBox: { ...box, height } }, readout: `${height} px` };
+      const height = clamp(start.frame.height + dy, 0, 1200);
+      if (box.heightUnit === "vh") {
+        const share = Math.round(clamp((height / start.screenHeight) * 100, 0, 200));
+        return { patch: { bgBox: { ...box, height: share } }, readout: `${share} % av skärmhöjden` };
+      }
+      return { patch: { bgBox: { ...box, height: Math.round(height) } }, readout: `${Math.round(height)} px` };
     }
     case "bottom": {
       const height = Math.round(clamp(start.height + dy, 4, 800));

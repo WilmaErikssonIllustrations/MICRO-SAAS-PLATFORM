@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { getContrastText } from "@/lib/color";
-import { type Box, boxRowStyle, boxStyle, isDefaultBox } from "@/lib/page/box";
+import { type Box, boxRowStyle, boxStyle, cssHeight, type HeightUnit, isDefaultBox } from "@/lib/page/box";
 import { type CustomFont, fontCss, fontFamily } from "@/lib/page/fonts";
 import { type ImageEdit, imageEditStyle, imageFrameStyle } from "@/lib/page/image-edit";
 import { type Typography, typographyVars } from "@/lib/page/typography";
@@ -111,8 +111,10 @@ export type HeroProps = {
   imageEdit: ImageEdit;
   /** Missing on pages saved before it existed, which then get no tint. */
   overlay: keyof typeof heroOverlay;
-  /** Height in pixels; 0 is automatic (60% of the screen, or the image's proportions). */
+  /** 0 is automatic (60% of the screen, or the image's proportions). */
   heroHeight: number;
+  /** Missing on pages saved before it existed, which then use pixels. */
+  heroHeightUnit: HeightUnit;
   /** "whole" sizes the hero to the image so none of it is cropped. */
   imageFit: "cover" | "whole";
   /** Button colors; empty means picked from the background. */
@@ -195,6 +197,7 @@ export function Hero({
   imageEdit,
   overlay,
   heroHeight,
+  heroHeightUnit,
   imageFit,
   buttonColor,
   buttonTextColor,
@@ -214,11 +217,12 @@ export function Hero({
     <section
       {...fontAttrs}
       data-resize-height="heroHeight"
+      data-resize-unit="heroHeightUnit"
       style={{
         ...(image ? undefined : themeStyle(backgroundColor)),
         ...fontStyle,
         ...typographyVars(typography),
-        minHeight: heroHeight || undefined,
+        minHeight: heroHeight ? cssHeight(heroHeight, heroHeightUnit) : undefined,
       }}
       className={`group relative isolate overflow-hidden ${whole ? "grid" : "flex flex-col"} ${
         image

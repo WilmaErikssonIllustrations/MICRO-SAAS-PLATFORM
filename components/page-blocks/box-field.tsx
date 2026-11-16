@@ -3,11 +3,13 @@
 import { FieldLabel } from "@puckeditor/core";
 import {
   BOX_POSITIONS,
-  BOX_RANGES,
   BOX_VALIGNS,
   type Box,
+  boxRange,
   DEFAULT_BOX,
+  HEIGHT_UNITS,
   isDefaultBox,
+  WIDTH_UNITS,
   withBoxDefaults,
 } from "@/lib/page/box";
 
@@ -18,12 +20,22 @@ const SLIDERS = [
   { key: "radius", label: "Rundade hörn", zero: "Inga" },
 ] as const;
 
+/** "px", or "%" for the screen-relative units. */
+const unitSymbol = (unit: string) => (unit === "px" ? "px" : "%");
+
 /** Short summary for menus. */
 export function boxSummary(value: Partial<Box> | undefined) {
   if (isDefaultBox(value)) return "Standard";
   const box = withBoxDefaults(value);
-  return box.width ? `${box.width} px` : "Anpassad";
+  if (box.height && box.heightUnit === "vh") return `${box.height} % höjd`;
+  return box.width ? `${box.width} ${unitSymbol(box.widthUnit)}` : "Anpassad";
 }
+
+/** Width and height can be pixels or a share of the screen. */
+const UNITS = {
+  width: { prop: "widthUnit", options: WIDTH_UNITS },
+  height: { prop: "heightUnit", options: HEIGHT_UNITS },
+} as const;
 
 // Controls for the box behind a block: size, spacing, corners and
 // alignment. Used in the side panel and in the right-click menu.
@@ -39,16 +51,27 @@ export function BoxControls({
   return (
     <div className="grid gap-4 p-1 text-sm text-zinc-800">
       {SLIDERS.map(({ key, label, zero }) => {
-        const range = BOX_RANGES[key];
+        const range = boxRange(box, key);
+        const units = key === "width" || key === "height" ? UNITS[key] : null;
+        const unit = units ? box[units.prop] : "px";
         return (
           <div key={key}>
-            <span className="flex items-center justify-between font-medium">
-              {label}
+            {units && (
+              <Choice
+                label={label}
+                value={unit as string}
+                options={units.options as Record<string, string>}
+                // A screen share starts at 100 % (the whole screen); pixels at 0 (automatic).
+                onChange={(next) => onChange({ ...box, [units.prop]: next, [key]: next === "px" ? 0 : 100 })}
+              />
+            )}
+            <span className="mt-2 flex items-center justify-between font-medium">
+              {units ? "" : label}
               <span className="flex items-center gap-1 font-normal text-zinc-500">
                 {box[key] === 0 && <span>{zero}</span>}
                 <input
                   type="number"
-                  aria-label={`${label} i pixlar`}
+                  aria-label={`${label} (${unit})`}
                   min={range.min}
                   max={range.max}
                   value={box[key]}
@@ -60,7 +83,7 @@ export function BoxControls({
                   }}
                   className="h-7 w-16 rounded-md border border-zinc-200 px-1.5 text-right text-zinc-800 tabular-nums focus:border-violet-500 focus:outline-none"
                 />
-                px
+                {unitSymbol(unit)}
               </span>
             </span>
             <input
@@ -104,7 +127,10 @@ function Choice<K extends string>({
   return (
     <div>
       <p className="mb-1.5 font-medium">{label}</p>
-      <div className="grid grid-cols-3 gap-1 rounded-lg bg-zinc-100 p-1">
+      <div
+        style={{ gridTemplateColumns: `repeat(${Object.keys(options).length}, minmax(0, 1fr))` }}
+        className="grid gap-1 rounded-lg bg-zinc-100 p-1"
+      >
         {(Object.keys(options) as K[]).map((key) => (
           <button
             key={key}
