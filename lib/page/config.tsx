@@ -68,7 +68,6 @@ type Components = {
 
 export type RootProps = {
   title: string;
-  themeColor: string;
   headingFont: string;
   bodyFont: string;
   customFonts: CustomFont[];
@@ -98,7 +97,7 @@ function imageField(label: string) {
   } satisfies CustomField<string>;
 }
 
-/** A block color; empty means the block's normal (theme) color. */
+/** A block color; empty means the block's normal color. */
 function colorField(label: string) {
   return {
     type: "custom",
@@ -209,14 +208,6 @@ export const pageConfig: PageConfig = {
   root: {
     fields: {
       title: { type: "text", label: "Sidans namn" },
-      themeColor: {
-        type: "custom",
-        label: "Temafärg",
-        metadata: { kind: "color" },
-        render: ({ field, value, onChange, readOnly }) => (
-          <ColorField label={field.label ?? "Temafärg"} value={value} onChange={onChange} readOnly={readOnly} />
-        ),
-      },
       headingFont: fontField("Typsnitt för rubriker"),
       bodyFont: fontField("Typsnitt för text"),
       customFonts: {
@@ -228,11 +219,10 @@ export const pageConfig: PageConfig = {
         ),
       },
     },
-    defaultProps: { title: "Min hemsida", themeColor: "#2563eb", headingFont: "", bodyFont: "", customFonts: [] },
-    render: ({ title, themeColor, headingFont, bodyFont, customFonts, children }) => (
+    defaultProps: { title: "Min hemsida", headingFont: "", bodyFont: "", customFonts: [] },
+    render: ({ title, headingFont, bodyFont, customFonts, children }) => (
       <SiteRoot
         title={title}
-        themeColor={themeColor}
         headingFont={headingFont}
         bodyFont={bodyFont}
         customFonts={customFonts}
@@ -312,7 +302,6 @@ export const pageConfig: PageConfig = {
           type: "radio",
           label: "Bakgrund",
           options: [
-            { label: "Temafärg", value: "theme" },
             { label: "Ljus", value: "light" },
             { label: "Mörk", value: "dark" },
           ],
@@ -329,7 +318,7 @@ export const pageConfig: PageConfig = {
         subtitle: "En kort mening om vad ni gör.",
         ctaText: "Kontakta oss",
         ctaLink: "mailto:hej@exempel.se",
-        background: "theme",
+        background: "dark",
         backgroundColor: "",
         imageEdit: DEFAULT_IMAGE_EDIT,
         overlay: "none",

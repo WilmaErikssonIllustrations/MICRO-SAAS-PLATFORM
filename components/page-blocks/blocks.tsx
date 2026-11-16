@@ -34,13 +34,17 @@ const selfAlignClass: Record<Align | "", string> = {
   right: "self-end text-right",
 };
 
+/** Buttons and links use this color unless a block sets its own. */
+const DEFAULT_ACCENT = "#18181b";
+
 /**
- * Sets the theme color variables the blocks read. Blocks with their own
- * color (an empty string means "use the theme") override them locally.
+ * Sets the accent color variables that buttons and links read, plus a
+ * readable text color on top of it. Blocks with their own color (empty
+ * means none) set them locally.
  */
-function themeStyle(color: string | undefined) {
+function accentStyle(color: string | undefined) {
   if (!color) return undefined;
-  return { "--theme": color, "--theme-contrast": getContrastText(color) } as CSSProperties;
+  return { "--accent": color, "--accent-contrast": getContrastText(color) } as CSSProperties;
 }
 
 /**
@@ -62,18 +66,16 @@ export type SiteFonts = { headingFont: string; bodyFont: string; customFonts: Cu
 
 export function SiteRoot({
   title,
-  themeColor,
   headingFont,
   bodyFont,
   customFonts,
   children,
 }: {
   title: string;
-  themeColor: string;
   children: ReactNode;
 } & Partial<SiteFonts>) {
   const style = {
-    ...themeStyle(themeColor),
+    ...accentStyle(DEFAULT_ACCENT),
     fontFamily: fontFamily(bodyFont),
     "--font-heading": fontFamily(headingFont) ?? "inherit",
   } as CSSProperties;
@@ -99,9 +101,10 @@ export function SiteRoot({
 }
 
 const heroBackground = {
-  theme: "bg-[var(--theme)] text-[var(--theme-contrast)]",
   light: "bg-zinc-50 text-zinc-900",
   dark: "bg-zinc-900 text-white",
+  /** backgroundColor, through the accent variables. */
+  custom: "bg-[var(--accent)] text-[var(--accent-contrast)]",
 } as const;
 
 // Optional tint over a hero image, to make white text easier to read.
@@ -139,7 +142,8 @@ export type HeroProps = {
   subtitle: string;
   ctaText: string;
   ctaLink: string;
-  background: keyof typeof heroBackground;
+  /** "theme" on pages saved before themes were removed; shown as dark. */
+  background: "light" | "dark";
   /** Overrides `background` when set. Empty means unset. */
   backgroundColor: string;
   imageEdit: ImageEdit;
@@ -275,8 +279,8 @@ export function Hero({
   const contentHeight = `${phone === "cover" && !height ? "min-h-[60vh]" : "min-h-0"} ${
     desktop === "cover" && !height ? "sm:min-h-[60vh]" : "sm:min-h-0"
   }`;
-  // A custom color works like the theme background, in that color.
-  const shade = backgroundColor ? "theme" : background;
+  // Pages saved with the old theme background get the dark one.
+  const shade = backgroundColor ? "custom" : background === "light" ? "light" : "dark";
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <section
@@ -284,7 +288,7 @@ export function Hero({
       data-resize-height="heroHeight"
       data-resize-unit="heroHeightUnit"
       style={{
-        ...(image ? undefined : themeStyle(backgroundColor)),
+        ...(image ? undefined : accentStyle(backgroundColor)),
         ...fontStyle,
         ...typographyVars(typography),
         ...(height && { "--hero-h": typeof height === "number" ? `${height}px` : height }),
@@ -337,9 +341,9 @@ export function Hero({
         {ctaText && (
           <ButtonLink
             href={ctaLink || "#"}
-            // On a theme-colored hero the default button is inverted; a
-            // chosen button color is used as is.
-            variant={shade === "theme" && !image && !buttonColor ? "inverted" : "filled"}
+            // On a dark or colored hero the default button is inverted
+            // (light); a chosen button color is used as is.
+            variant={shade !== "light" && !image && !buttonColor ? "inverted" : "filled"}
             color={buttonColor}
             textColor={buttonTextColor}
             part="cta"
@@ -417,7 +421,7 @@ export function TextBlock({
       data-resize-box
       {...fontAttrs}
       style={{ color: color || undefined, ...fontStyle, ...typographyVars(typography) }}
-      className="mx-auto max-w-3xl px-6 py-6 text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.625) tracking-(--ls,normal) text-[color:var(--block-text,var(--color-zinc-700))] [&_:is(h2,h3)]:leading-(--lh,1.3) [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-[length:calc(1.5rem*var(--fs,1))] [&_h2]:font-bold [&_h2]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_h3]:mt-6 [&_h3]:text-[length:calc(1.25rem*var(--fs,1))] [&_h3]:font-semibold [&_h3]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic"
+      className="mx-auto max-w-3xl px-6 py-6 text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.625) tracking-(--ls,normal) text-[color:var(--block-text,var(--color-zinc-700))] [&_:is(h2,h3)]:leading-(--lh,1.3) [&_a]:text-[var(--accent)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-[length:calc(1.5rem*var(--fs,1))] [&_h2]:font-bold [&_h2]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_h3]:mt-6 [&_h3]:text-[length:calc(1.25rem*var(--fs,1))] [&_h3]:font-semibold [&_h3]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--accent)] [&_blockquote]:pl-4 [&_blockquote]:italic"
     >
       <FontImport font={font} />
       {content}
@@ -455,9 +459,9 @@ export function Button({ label, href, variant, align, color, textColor, font, ty
 }
 
 const buttonVariant = {
-  filled: "bg-[var(--theme)] text-[var(--theme-contrast)]",
-  outline: "border-2 border-[var(--theme)] text-[var(--theme)]",
-  inverted: "bg-[var(--theme-contrast)] text-[var(--theme)]",
+  filled: "bg-[var(--accent)] text-[var(--accent-contrast)]",
+  outline: "border-2 border-[var(--accent)] text-[var(--accent)]",
+  inverted: "bg-[var(--accent-contrast)] text-[var(--accent)]",
 } as const;
 
 function ButtonLink({
@@ -487,7 +491,7 @@ function ButtonLink({
       data-part={part}
       href={href}
       rel="noopener noreferrer"
-      style={{ ...themeStyle(color), color: textColor || undefined }}
+      style={{ ...accentStyle(color), color: textColor || undefined }}
       className={`${className} mt-10 inline-flex items-center rounded-full px-8 py-3 text-[length:calc(1rem*var(--fs,1))] leading-(--lh,1.5) font-semibold tracking-(--ls,normal) shadow-sm transition-transform hover:scale-105 ${buttonVariant[variant]}`}
     >
       {children}

@@ -286,8 +286,6 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
         onSelect={() => run(() => move(puck, zone, index, index + 1))}
       />
       <MenuDivider />
-      <RootColorItem />
-      <MenuDivider />
       <MenuItem
         label="Ta bort"
         danger
@@ -436,20 +434,6 @@ function wrapInSection(getPuck: () => PuckApi, id: string) {
     destinationZone: `${sectionId}:content`,
   });
   dispatch({ type: "setUi", ui: { itemSelector: { index: selector.index, zone: selector.zone } } });
-}
-
-/** The page's theme color, reachable from every block's menu. */
-function RootColorItem() {
-  const getPuck = useGetPuck();
-  const themeColor = usePuck((s) => (s.appState.data.root.props?.themeColor as string | undefined) ?? "");
-  return (
-    <MenuItem
-      label="Sidans temafärg"
-      icon={<Icon><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.5 0-1.2-1-1.5-1-2.5s.8-1.5 2-1.5H17a4 4 0 0 0 4-4c0-4.4-4-8.5-9-8.5Z" /></Icon>}
-      hint={<Swatch color={themeColor} />}
-      submenu={<ColorPicker value={themeColor} onChange={(value) => updateRootProps(getPuck(), { themeColor: value })} />}
-    />
-  );
 }
 
 /**
