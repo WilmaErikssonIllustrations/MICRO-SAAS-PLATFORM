@@ -57,9 +57,23 @@ export type HeroProps = {
   align: Align;
 };
 
-export function Hero({ image, title, subtitle, ctaText, ctaLink, background, align }: HeroProps) {
+/** Editor-only controls (e.g. "Byt bild") shown on top of an image. */
+type ImageControls = { imageControls?: ReactNode };
+
+export function Hero({
+  image,
+  title,
+  subtitle,
+  ctaText,
+  ctaLink,
+  background,
+  align,
+  imageControls,
+}: HeroProps & ImageControls) {
   return (
-    <section className={`relative isolate ${image ? "bg-zinc-900 text-white" : heroBackground[background]}`}>
+    <section
+      className={`group relative isolate ${image ? "bg-zinc-900 text-white" : heroBackground[background]}`}
+    >
       {image && (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
@@ -67,6 +81,7 @@ export function Hero({ image, title, subtitle, ctaText, ctaLink, background, ali
           <div className="absolute inset-0 -z-10 bg-black/50" />
         </>
       )}
+      {imageControls && <HoverControls>{imageControls}</HoverControls>}
       <div
         className={`mx-auto flex min-h-[60vh] max-w-5xl flex-col justify-center px-6 py-24 ${alignClass[align]}`}
       >
@@ -188,18 +203,21 @@ const imageWidth = { narrow: "max-w-2xl", wide: "max-w-5xl", full: "max-w-none" 
 
 export type ImageProps = { src: string; alt: string; width: keyof typeof imageWidth };
 
-export function ImageBlock({ src, alt, width }: ImageProps) {
+export function ImageBlock({ src, alt, width, imageControls }: ImageProps & ImageControls) {
   if (!src) {
+    // An empty image is only shown in the editor, as a place to upload one.
+    if (!imageControls) return null;
     return (
       <div className="mx-auto max-w-2xl px-6 py-6">
-        <div className="flex h-48 items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 text-sm text-zinc-500">
-          Välj en bild i panelen till höger
+        <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
+          {imageControls}
+          <span>JPG, PNG, WebP, GIF eller AVIF</span>
         </div>
       </div>
     );
   }
   return (
-    <figure className={`mx-auto py-6 ${width === "full" ? "" : "px-6"} ${imageWidth[width]}`}>
+    <figure className={`group relative mx-auto py-6 ${width === "full" ? "" : "px-6"} ${imageWidth[width]}`}>
       {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
       <img
         src={src}
@@ -207,7 +225,16 @@ export function ImageBlock({ src, alt, width }: ImageProps) {
         loading="lazy"
         className={`h-auto w-full object-cover ${width === "full" ? "" : "rounded-xl"}`}
       />
+      {imageControls && <HoverControls>{imageControls}</HoverControls>}
     </figure>
+  );
+}
+
+function HoverControls({ children }: { children: ReactNode }) {
+  return (
+    <div className="absolute top-4 right-4 z-10 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      {children}
+    </div>
   );
 }
 

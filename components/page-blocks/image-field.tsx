@@ -1,8 +1,8 @@
 "use client";
 
 import { FieldLabel } from "@puckeditor/core";
-import { type ChangeEvent, useState } from "react";
-import { requestImageUpload } from "@/actions/uploads";
+import type { ChangeEvent } from "react";
+import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "./use-image-upload";
 
 type ImageFieldProps = {
   label: string;
@@ -11,38 +11,17 @@ type ImageFieldProps = {
   readOnly?: boolean;
 };
 
-// Puck custom field: uploads the chosen image straight to S3 through a
-// presigned URL and stores the resulting public URL as the field value.
+// Puck custom field: uploads the chosen image and stores the resulting
+// public URL as the field value.
 export function ImageField({ label, value, onChange, readOnly }: ImageFieldProps) {
-  const [status, setStatus] = useState<{ uploading: boolean; error: string | null }>({
-    uploading: false,
-    error: null,
-  });
+  const { upload, uploading, error } = useImageUpload();
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-
-    setStatus({ uploading: true, error: null });
-    const ticket = await requestImageUpload({ contentType: file.type, size: file.size });
-    if (!ticket.ok) {
-      setStatus({ uploading: false, error: ticket.message });
-      return;
-    }
-
-    const response = await fetch(ticket.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
-    }).catch(() => null);
-
-    if (!response?.ok) {
-      setStatus({ uploading: false, error: "Uppladdningen misslyckades. Försök igen." });
-      return;
-    }
-    onChange(ticket.publicUrl);
-    setStatus({ uploading: false, error: null });
+    const url = await upload(file);
+    if (url) onChange(url);
   }
 
   return (
@@ -62,16 +41,16 @@ export function ImageField({ label, value, onChange, readOnly }: ImageFieldProps
               padding: "6px 12px",
               border: "1px solid #d4d4d8",
               borderRadius: 6,
-              cursor: readOnly || status.uploading ? "default" : "pointer",
+              cursor: readOnly || uploading ? "default" : "pointer",
               background: "white",
             }}
           >
-            {status.uploading ? "Laddar upp..." : value ? "Byt bild" : "Ladda upp bild"}
+            {uploading ? "Laddar upp..." : value ? "Byt bild" : "Ladda upp bild"}
             <input
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              accept={ACCEPTED_IMAGE_TYPES}
               onChange={handleFile}
-              disabled={readOnly || status.uploading}
+              disabled={readOnly || uploading}
               style={{ display: "none" }}
             />
           </label>
@@ -85,9 +64,9 @@ export function ImageField({ label, value, onChange, readOnly }: ImageFieldProps
             </button>
           )}
         </div>
-        {status.error && (
+        {error && (
           <p role="alert" style={{ color: "#dc2626", fontSize: 13, margin: 0 }}>
-            {status.error}
+            {error}
           </p>
         )}
       </div>

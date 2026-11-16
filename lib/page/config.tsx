@@ -15,6 +15,7 @@ import {
   type SpacerSize,
   TextBlock,
 } from "@/components/page-blocks/blocks";
+import { CanvasImagePicker } from "@/components/page-blocks/canvas-image-picker";
 import { ColorField } from "@/components/page-blocks/color-field";
 import { ImageField } from "@/components/page-blocks/image-field";
 
@@ -110,7 +111,21 @@ export const pageConfig: PageConfig = {
         background: "theme",
         align: "center",
       },
-      render: (props) => <Hero {...props} />,
+      render: ({ puck, ...props }) => (
+        <Hero
+          {...props}
+          imageControls={
+            puck.isEditing && (
+              <CanvasImagePicker
+                componentId={props.id}
+                propName="image"
+                hasImage={!!props.image}
+                emptyLabel="Lägg till bakgrundsbild"
+              />
+            )
+          }
+        />
+      ),
     },
     Heading: {
       label: "Rubrik",
@@ -151,7 +166,16 @@ export const pageConfig: PageConfig = {
         },
       },
       defaultProps: { src: "", alt: "", width: "wide" },
-      render: (props) => <ImageBlock {...props} />,
+      render: ({ puck, ...props }) => (
+        <ImageBlock
+          {...props}
+          imageControls={
+            puck.isEditing && (
+              <CanvasImagePicker componentId={props.id} propName="src" hasImage={!!props.src} />
+            )
+          }
+        />
+      ),
     },
     Button: {
       label: "Knapp",
