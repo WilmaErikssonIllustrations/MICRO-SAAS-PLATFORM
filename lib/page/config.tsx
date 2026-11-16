@@ -151,6 +151,15 @@ export const pageConfig: PageConfig = {
       fields: {
         image: imageField("Bakgrundsbild (valfri)"),
         imageEdit: imageEditField("image", "imageEdit", true),
+        overlay: {
+          type: "radio",
+          label: "Ton över bilden",
+          options: [
+            { label: "Ingen", value: "none" },
+            { label: "Lätt", value: "light" },
+            { label: "Mörk", value: "dark" },
+          ],
+        },
         title: { type: "text", label: "Rubrik", contentEditable: true },
         subtitle: { type: "textarea", label: "Underrubrik", contentEditable: true },
         ctaText: { type: "text", label: "Knapptext", contentEditable: true },
@@ -177,6 +186,7 @@ export const pageConfig: PageConfig = {
         background: "theme",
         backgroundColor: "",
         imageEdit: DEFAULT_IMAGE_EDIT,
+        overlay: "none",
         align: "center",
         font: "",
       },

@@ -86,6 +86,9 @@ const heroBackground = {
   dark: "bg-zinc-900 text-white",
 } as const;
 
+// Optional tint over a hero image, to make white text easier to read.
+const heroOverlay = { none: "", light: "bg-black/25", dark: "bg-black/50" } as const;
+
 export type HeroProps = {
   image: string;
   title: string;
@@ -96,6 +99,8 @@ export type HeroProps = {
   /** Overrides `background` when set. Empty means unset. */
   backgroundColor: string;
   imageEdit: ImageEdit;
+  /** Missing on pages saved before it existed, which then get no tint. */
+  overlay: keyof typeof heroOverlay;
   align: Align;
   font: string;
 };
@@ -112,10 +117,12 @@ export function Hero({
   background,
   backgroundColor,
   imageEdit,
+  overlay,
   align,
   font,
   imageControls,
 }: HeroProps & ImageControls) {
+  const tint = heroOverlay[overlay] ?? "";
   // A custom color works like the theme background, in that color.
   const shade = backgroundColor ? "theme" : background;
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
@@ -123,7 +130,12 @@ export function Hero({
     <section
       {...fontAttrs}
       style={{ ...(image ? undefined : themeStyle(backgroundColor)), ...fontStyle }}
-      className={`group relative isolate overflow-hidden ${image ? "bg-zinc-900 text-white" : heroBackground[shade]}`}
+      className={`group relative isolate overflow-hidden ${
+        image
+          ? // Without a dark tint, a soft shadow keeps the white text readable.
+            `bg-zinc-900 text-white ${overlay === "dark" ? "" : "[text-shadow:0_1px_12px_rgb(0_0_0/0.45)]"}`
+          : heroBackground[shade]
+      }`}
     >
       <FontImport font={font} />
       {image && (
@@ -135,7 +147,7 @@ export function Hero({
             style={imageEditStyle(imageEdit)}
             className="absolute inset-0 -z-10 h-full w-full object-cover"
           />
-          <div className="absolute inset-0 -z-10 bg-black/50" />
+          {tint && <div className={`absolute inset-0 -z-10 ${tint}`} />}
         </>
       )}
       {imageControls && <HoverControls>{imageControls}</HoverControls>}
