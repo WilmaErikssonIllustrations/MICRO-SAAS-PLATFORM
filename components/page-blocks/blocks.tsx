@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { getContrastText } from "@/lib/color";
+import { type Box, boxRowStyle, boxStyle, isDefaultBox } from "@/lib/page/box";
 import { type CustomFont, fontCss, fontFamily } from "@/lib/page/fonts";
 import { type ImageEdit, imageEditStyle, imageFrameStyle } from "@/lib/page/image-edit";
 import { type Typography, typographyVars } from "@/lib/page/typography";
@@ -17,11 +18,12 @@ import { type Typography, typographyVars } from "@/lib/page/typography";
 // `data-resize-box` marks the element the editor puts resize handles on
 // (app/dashboard/editor/resize-handles.tsx); it does nothing on the site.
 
-type Align = "left" | "center";
+type Align = "left" | "center" | "right";
 
 const alignClass: Record<Align, string> = {
   left: "items-start text-left",
   center: "items-center text-center",
+  right: "items-end text-right",
 };
 
 /**
@@ -122,37 +124,49 @@ export type BackgroundProps = {
   bgColor: string;
   bgImage: string;
   bgImageEdit: ImageEdit;
+  /** The box the background is drawn in (lib/page/box.ts). */
+  bgBox: Box;
 };
 
+/** True if a block draws a background box around itself. */
+export function hasBackground(props: Partial<BackgroundProps>) {
+  return Boolean(props.bgColor || props.bgImage || !isDefaultBox(props.bgBox));
+}
+
 /**
- * A background color and/or image behind any block, covering the block's
- * whole area. On a dark color the text turns light: Heading inherits
- * `color`, TextBlock reads --block-text/--block-heading.
+ * A background color and/or image behind any block, in a box that by
+ * default covers the block's whole area. On a dark color the text turns
+ * light: Heading inherits `color`, TextBlock reads --block-text/--block-heading.
+ * `data-box` is where the editor puts the box's resize handles.
  */
 export function BlockBackground({
   bgColor,
   bgImage,
   bgImageEdit,
+  bgBox,
   children,
 }: Partial<BackgroundProps> & { children: ReactNode }) {
-  if (!bgColor && !bgImage) return children;
+  if (!hasBackground({ bgColor, bgImage, bgBox })) return children;
   const light = bgColor && getContrastText(bgColor) === "#ffffff";
   const style = {
+    ...boxStyle(bgBox),
     backgroundColor: bgColor || undefined,
     ...(light && { color: "#ffffff", "--block-text": "rgb(255 255 255 / 0.85)", "--block-heading": "#ffffff" }),
   } as CSSProperties;
   return (
-    <div style={style} className="relative isolate overflow-hidden">
-      {bgImage && (
-        // eslint-disable-next-line @next/next/no-img-element -- user uploads on S3
-        <img
-          src={bgImage}
-          alt=""
-          style={imageEditStyle(bgImageEdit)}
-          className="absolute inset-0 -z-10 h-full w-full object-cover"
-        />
-      )}
-      {children}
+    <div style={boxRowStyle(bgBox)}>
+      <div data-box style={style} className="relative isolate overflow-hidden">
+        {bgImage && (
+          // eslint-disable-next-line @next/next/no-img-element -- user uploads on S3
+          <img
+            src={bgImage}
+            alt=""
+            style={imageEditStyle(bgImageEdit)}
+            className="absolute inset-0 -z-10 h-full w-full object-cover"
+          />
+        )}
+        {children}
+      </div>
     </div>
   );
 }
@@ -241,22 +255,38 @@ export type HeadingProps = {
   color: string;
   font: string;
   typography: Typography;
+  /** Missing on pages saved before it existed. */
+  decoration: "none" | "underline";
 };
 
-export function Heading({ text, level: Tag, align, color, font, typography }: HeadingProps) {
+export function Heading({
+  text,
+  level: Tag,
+  align,
+  color,
+  font,
+  typography,
+  decoration,
+  boxed,
+}: HeadingProps & {
+  /** In a background box: even spacing above and below, not just above. */
+  boxed?: boolean;
+}) {
   return (
     <div
       style={typographyVars(typography)}
-      className={`mx-auto flex max-w-3xl flex-col px-6 pt-12 ${alignClass[align]}`}
+      className={`mx-auto flex w-full max-w-3xl flex-col px-6 ${boxed ? "py-8" : "pt-12"} ${alignClass[align]}`}
     >
       <FontImport font={font} />
       <Tag
         data-resize-box
         style={{ color: color || undefined, fontFamily: fontFamily(font) }}
         className={
-          Tag === "h2"
-            ? "text-[length:calc(1.875rem*var(--fs,1))] leading-(--lh,1.2) font-bold tracking-(--ls,-0.025em)"
-            : "text-[length:calc(1.5rem*var(--fs,1))] leading-(--lh,1.33) font-semibold tracking-(--ls,-0.025em)"
+          `${
+            Tag === "h2"
+              ? "text-[length:calc(1.875rem*var(--fs,1))] leading-(--lh,1.2) font-bold tracking-(--ls,-0.025em)"
+              : "text-[length:calc(1.5rem*var(--fs,1))] leading-(--lh,1.33) font-semibold tracking-(--ls,-0.025em)"
+          } ${decoration === "underline" ? "underline decoration-[0.06em] underline-offset-[0.18em]" : ""}`
         }
       >
         {text}

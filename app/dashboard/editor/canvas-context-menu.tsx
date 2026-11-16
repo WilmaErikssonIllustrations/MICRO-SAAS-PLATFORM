@@ -4,6 +4,7 @@ import { type ComponentData, createUsePuck, type Field, useGetPuck } from "@puck
 import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useImageEditor } from "@/components/page-blocks/image-editor-context";
+import { BoxControls, boxSummary } from "@/components/page-blocks/box-field";
 import { columnWidthsSummary } from "@/components/page-blocks/column-widths-field";
 import {
   resolveBasePx,
@@ -18,6 +19,7 @@ import {
   updateRootProps,
 } from "@/components/page-blocks/update-block";
 import { ACCEPTED_FONT_TYPES, useFontUpload } from "@/components/page-blocks/use-upload";
+import type { Box } from "@/lib/page/box";
 import type { PageConfig } from "@/lib/page/config";
 import type { Typography } from "@/lib/page/typography";
 import {
@@ -475,6 +477,17 @@ function FieldItem({
             icon={<Icon><path d="M4 7V5h10v2M9 5v14M7 19h4M14 13v-1h6v1M17 12v7M15.5 19h3" /></Icon>}
             hint={typographySummary(typography, basePx)}
             submenu={<TypographyControls value={typography} onChange={onChange} basePx={basePx} />}
+          />
+        );
+      }
+      if (kind === "box") {
+        const box = value as Partial<Box> | undefined;
+        return (
+          <MenuItem
+            label={label}
+            icon={<Icon><rect x="4" y="5" width="16" height="14" rx="3" /></Icon>}
+            hint={boxSummary(box)}
+            submenu={<BoxControls value={box} onChange={onChange} />}
           />
         );
       }

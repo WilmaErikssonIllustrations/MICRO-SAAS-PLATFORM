@@ -4,6 +4,7 @@ import {
   type BackgroundProps,
   BlockBackground,
   Button,
+  hasBackground,
   type ButtonProps,
   COLUMN_COUNTS,
   Columns,
@@ -19,12 +20,14 @@ import {
   type SpacerSize,
   TextBlock,
 } from "@/components/page-blocks/blocks";
+import { BoxField } from "@/components/page-blocks/box-field";
 import { CanvasImagePicker } from "@/components/page-blocks/canvas-image-picker";
 import { ColorField } from "@/components/page-blocks/color-field";
 import { ColumnWidthsField } from "@/components/page-blocks/column-widths-field";
 import { FontField, FontListField } from "@/components/page-blocks/font-field";
 import { ImageEditField } from "@/components/page-blocks/image-edit-field";
 import { ImageField } from "@/components/page-blocks/image-field";
+import { type Box, DEFAULT_BOX } from "@/lib/page/box";
 import type { CustomFont } from "@/lib/page/fonts";
 import { DEFAULT_IMAGE_EDIT, type ImageEdit } from "@/lib/page/image-edit";
 import { DEFAULT_TYPOGRAPHY, type Typography } from "@/lib/page/typography";
@@ -76,6 +79,7 @@ const alignField = {
   options: [
     { label: "Vänster", value: "left" },
     { label: "Centrerad", value: "center" },
+    { label: "Höger", value: "right" },
   ],
 } as const;
 
@@ -119,13 +123,24 @@ const backgroundFields = {
   bgColor: colorField("Bakgrundsfärg"),
   bgImage: imageField("Bakgrundsbild"),
   bgImageEdit: imageEditField("bgImage", "bgImageEdit", true, "Redigera bakgrundsbild"),
+  bgBox: {
+    type: "custom",
+    label: "Ruta",
+    metadata: { kind: "box" },
+    render: ({ value, onChange }) => <BoxField label="Ruta" value={value} onChange={onChange} />,
+  } satisfies CustomField<Box>,
 };
-const backgroundDefaults = { bgColor: "", bgImage: "", bgImageEdit: DEFAULT_IMAGE_EDIT };
+const backgroundDefaults = { bgColor: "", bgImage: "", bgImageEdit: DEFAULT_IMAGE_EDIT, bgBox: DEFAULT_BOX };
 
 /** Wraps a block's rendering in its background. */
 function withBackground(props: Partial<BackgroundProps>, block: ReactNode) {
   return (
-    <BlockBackground bgColor={props.bgColor} bgImage={props.bgImage} bgImageEdit={props.bgImageEdit}>
+    <BlockBackground
+      bgColor={props.bgColor}
+      bgImage={props.bgImage}
+      bgImageEdit={props.bgImageEdit}
+      bgBox={props.bgBox}
+    >
       {block}
     </BlockBackground>
   );
@@ -294,6 +309,14 @@ export const pageConfig: PageConfig = {
           ],
         },
         align: alignField,
+        decoration: {
+          type: "radio",
+          label: "Understruken",
+          options: [
+            { label: "Nej", value: "none" },
+            { label: "Ja", value: "underline" },
+          ],
+        },
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
         typography: typographyField({ h2: 30, h3: 24 }, "level"),
@@ -305,11 +328,12 @@ export const pageConfig: PageConfig = {
         text: "Rubrik",
         level: "h2",
         align: "left",
+        decoration: "none",
         color: "",
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
       },
-      render: (props) => withBackground(props, <Heading {...props} />),
+      render: (props) => withBackground(props, <Heading {...props} boxed={hasBackground(props)} />),
     },
     Text: {
       label: "Text",

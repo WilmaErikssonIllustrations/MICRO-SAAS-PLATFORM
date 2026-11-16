@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { columnFractions, type ColumnsRatio } from "@/components/page-blocks/blocks";
 import { resolveBasePx, type TypographyMetadata } from "@/components/page-blocks/typography-field";
 import { updateBlockProps } from "@/components/page-blocks/update-block";
+import { withBoxDefaults } from "@/lib/page/box";
 import type { PageConfig } from "@/lib/page/config";
 import { TYPOGRAPHY_RANGES, withTypographyDefaults } from "@/lib/page/typography";
 
@@ -18,6 +19,8 @@ const usePuck = createUsePuck<PageConfig>();
 //   text    - Hero, Rubrik, Text, Knapp: the text size (corner)
 //   columns - Kolumner: the widths of two neighboring columns (dividers)
 // Blocks mark the element to put handles on with `data-resize-box`.
+// Blocks with a background box (BlockBackground, `data-box`) also get
+// filled handles for the box's width and height.
 
 type Mode = "width" | "height" | "text" | "columns";
 
@@ -31,10 +34,16 @@ const MODES: Partial<Record<string, Mode>> = {
   Columns: "columns",
 };
 
-/** The handle box in document coordinates; dividers are x positions. */
-type Box = { id: string; left: number; top: number; width: number; height: number; room: number; dividers: number[] };
+/** A rectangle in document coordinates, and the width available to it. */
+type Rect = { left: number; top: number; width: number; height: number; room: number };
 
-type Handle = { kind: "left" | "right" | "bottom" | "corner" } | { kind: "divider"; index: number };
+/** The content's handle box, its background box (if any) and column dividers (x positions). */
+type Box = Rect & { id: string; frame: Rect | null; dividers: number[] };
+
+type Handle =
+  | { kind: "left" | "right" | "bottom" | "corner" | "boxHeight" }
+  | { kind: "boxWidth"; side: "left" | "right" }
+  | { kind: "divider"; index: number };
 
 const MIN_COLUMN_PERCENT = 10;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -161,6 +170,16 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
                 {...handleProps({ kind: "divider", index }, "Dra för att ändra kolumnernas bredd")}
               />
             ))}
+          {box.frame && (
+            <BoxGrips
+              frame={box.frame}
+              position={withBoxDefaults((selected?.props as { bgBox?: object } | undefined)?.bgBox).position}
+              // Keep clear of the content's own handles where they could overlap.
+              avoidMiddle={mode === "width"}
+              avoidCenter={mode === "height"}
+              handleProps={handleProps}
+            />
+          )}
           {readout && (
             <span
               className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold whitespace-nowrap text-white shadow"
@@ -176,6 +195,41 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
   );
 }
 
+function BoxGrips({
+  frame,
+  position,
+  avoidMiddle,
+  avoidCenter,
+  handleProps,
+}: {
+  frame: Rect;
+  position: "left" | "center" | "right";
+  avoidMiddle: boolean;
+  avoidCenter: boolean;
+  handleProps: (handle: Handle, title: string) => Omit<GripProps, "x" | "y" | "shape" | "filled">;
+}) {
+  // A box on the right grows to the left; otherwise to the right.
+  const side = position === "right" ? "left" : "right";
+  return (
+    <>
+      <Grip
+        x={side === "right" ? frame.left + frame.width : frame.left}
+        y={frame.top + frame.height * (avoidMiddle ? 0.25 : 0.5)}
+        shape="vertical"
+        filled
+        {...handleProps({ kind: "boxWidth", side }, "Dra för att ändra rutans bredd")}
+      />
+      <Grip
+        x={frame.left + frame.width * (avoidCenter ? 0.25 : 0.5)}
+        y={frame.top + frame.height}
+        shape="horizontal"
+        filled
+        {...handleProps({ kind: "boxHeight" }, "Dra för att ändra rutans höjd")}
+      />
+    </>
+  );
+}
+
 const gripShapes = {
   vertical: "h-9 w-2.5 cursor-ew-resize rounded-full",
   horizontal: "h-2.5 w-9 cursor-ns-resize rounded-full",
@@ -183,25 +237,26 @@ const gripShapes = {
   divider: "h-12 w-2.5 cursor-col-resize rounded-full",
 } as const;
 
-function Grip({
-  x,
-  y,
-  shape,
-  ...rest
-}: {
+type GripProps = {
   x: number;
   y: number;
   shape: keyof typeof gripShapes;
+  /** Filled grips resize the background box, white ones the content. */
+  filled?: boolean;
   title: string;
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
   onClick: (event: React.MouseEvent) => void;
-}) {
+};
+
+function Grip({ x, y, shape, filled, ...rest }: GripProps) {
   return (
     <span
       aria-label={rest.title}
       {...rest}
       style={{ left: x, top: y, touchAction: "none" }}
-      className={`absolute -translate-x-1/2 -translate-y-1/2 border-2 border-violet-600 bg-white shadow-md transition-transform hover:scale-125 ${gripShapes[shape]}`}
+      className={`absolute -translate-x-1/2 -translate-y-1/2 border-2 border-violet-600 shadow-md transition-transform hover:scale-125 ${
+        filled ? "bg-violet-600 ring-2 ring-white" : "bg-white"
+      } ${gripShapes[shape]}`}
     />
   );
 }
@@ -213,6 +268,17 @@ function measure(doc: Document, id: string, mode: Mode): Box | null {
   if (!win || !target) return null;
 
   const rect = target.getBoundingClientRect();
+  const boxElement = wrapper?.querySelector<HTMLElement>("[data-box]");
+  const boxRect = boxElement?.getBoundingClientRect();
+  const frame = boxElement && boxRect
+    ? {
+        left: boxRect.left + win.scrollX,
+        top: boxRect.top + win.scrollY,
+        width: boxRect.width,
+        height: boxRect.height,
+        room: contentWidth(boxElement.parentElement) ?? boxRect.width,
+      }
+    : null;
   const dividers: number[] = [];
   if (mode === "columns") {
     const columns = Array.from(target.children).map((child) => child.getBoundingClientRect());
@@ -230,6 +296,7 @@ function measure(doc: Document, id: string, mode: Mode): Box | null {
     width: rect.width,
     height: rect.height,
     room: contentWidth(target.parentElement) ?? rect.width,
+    frame,
     dividers,
   };
 }
@@ -251,6 +318,7 @@ function sameBox(a: Box | null, b: Box | null) {
     Math.abs(a.width - b.width) < 0.5 &&
     Math.abs(a.height - b.height) < 0.5 &&
     a.room === b.room &&
+    JSON.stringify(a.frame) === JSON.stringify(b.frame) &&
     a.dividers.join() === b.dividers.join()
   );
 }
@@ -272,6 +340,23 @@ function dragResult(
       const width = Math.round(clamp(start.width + 2 * direction * dx, 40, start.room));
       const fills = width >= start.room - 2;
       return { patch: { widthPx: fills ? 0 : width }, readout: fills ? "Fyller bredden" : `${width} px` };
+    }
+    case "boxWidth": {
+      if (!start.frame) return { patch: {}, readout: "" };
+      const box = withBoxDefaults(props.bgBox as object | undefined);
+      // A centered box grows on both sides, so twice the pointer distance.
+      const factor = box.position === "center" ? 2 : 1;
+      const direction = handle.side === "right" ? 1 : -1;
+      const room = start.frame.room;
+      const width = Math.round(clamp(start.frame.width + factor * direction * dx, 60, room));
+      const fills = width >= room - 2;
+      return { patch: { bgBox: { ...box, width: fills ? 0 : width } }, readout: fills ? "Hela bredden" : `${width} px` };
+    }
+    case "boxHeight": {
+      if (!start.frame) return { patch: {}, readout: "" };
+      const box = withBoxDefaults(props.bgBox as object | undefined);
+      const height = Math.round(clamp(start.frame.height + dy, 0, 1200));
+      return { patch: { bgBox: { ...box, height } }, readout: `${height} px` };
     }
     case "bottom": {
       const height = Math.round(clamp(start.height + dy, 4, 800));
