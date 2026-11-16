@@ -44,3 +44,9 @@ html body {
   position: absolute;
   inset: 0;
 }
+
+/* No zoom in/out buttons above the canvas; the titles come from dictionary.ts. */
+[title="Zooma in"],
+[title="Zooma ut"] {
+  display: none;
+}

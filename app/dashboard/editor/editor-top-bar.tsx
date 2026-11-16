@@ -51,9 +51,6 @@ export function EditorTopBar({ onSave, onPublish, ...status }: EditorTopBarProps
         </span>
         <div className="min-w-0 leading-tight">
           <p className="truncate text-sm font-semibold">{title || "Min hemsida"}</p>
-          <p className="hidden truncate text-xs text-zinc-500 sm:block">
-            Klicka på något i sidan för att ändra det
-          </p>
         </div>
       </div>
 
