@@ -13,31 +13,62 @@ const IMAGE_TYPES: Record<string, string> = {
   "image/avif": "avif",
 };
 
-export type ImageUploadTicket =
+const MAX_FONT_BYTES = 2 * 1024 * 1024;
+// Browsers report font types inconsistently, so the client derives the
+// type from the file extension (see components/page-blocks/use-upload.ts).
+const FONT_TYPES: Record<string, string> = {
+  "font/woff2": "woff2",
+  "font/woff": "woff",
+  "font/ttf": "ttf",
+  "font/otf": "otf",
+};
+
+export type UploadTicket =
   | { ok: true; uploadUrl: string; publicUrl: string }
   | { ok: false; message: string };
 
 /** Hands out a presigned URL for uploading one image to the user's folder. */
-export async function requestImageUpload(file: {
-  contentType: string;
-  size: number;
-}): Promise<ImageUploadTicket> {
-  const user = await requireUser();
-
-  if (!isStorageConfigured()) {
-    return { ok: false, message: "Bilduppladdning är inte konfigurerad på servern." };
-  }
+export async function requestImageUpload(file: { contentType: string; size: number }): Promise<UploadTicket> {
   const extension = IMAGE_TYPES[file.contentType];
   if (!extension) {
     return { ok: false, message: "Välj en bild i formatet JPG, PNG, WebP, GIF eller AVIF." };
   }
-  if (!Number.isInteger(file.size) || file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
+  if (!isValidSize(file.size, MAX_IMAGE_BYTES)) {
     return { ok: false, message: "Bilden får vara högst 5 MB." };
   }
+  return createTicket("", extension, file);
+}
 
-  // Files are stored per tenant so a site's images live under its own prefix.
+/** Hands out a presigned URL for uploading one font file. */
+export async function requestFontUpload(file: { contentType: string; size: number }): Promise<UploadTicket> {
+  const extension = FONT_TYPES[file.contentType];
+  if (!extension) {
+    return { ok: false, message: "Välj ett typsnitt i formatet WOFF2, WOFF, TTF eller OTF." };
+  }
+  if (!isValidSize(file.size, MAX_FONT_BYTES)) {
+    return { ok: false, message: "Typsnittsfilen får vara högst 2 MB." };
+  }
+  return createTicket("fonts/", extension, file);
+}
+
+function isValidSize(size: number, max: number) {
+  return Number.isInteger(size) && size > 0 && size <= max;
+}
+
+async function createTicket(
+  folder: string,
+  extension: string,
+  file: { contentType: string; size: number },
+): Promise<UploadTicket> {
+  const user = await requireUser();
+
+  if (!isStorageConfigured()) {
+    return { ok: false, message: "Uppladdning är inte konfigurerad på servern." };
+  }
+
+  // Files are stored per tenant so a site's files live under its own prefix.
   const website = await getOrCreateUserWebsite(user);
-  const key = `sites/${website.id}/${crypto.randomUUID()}.${extension}`;
+  const key = `sites/${website.id}/${folder}${crypto.randomUUID()}.${extension}`;
 
   try {
     const { uploadUrl, publicUrl } = await createUploadUrl({

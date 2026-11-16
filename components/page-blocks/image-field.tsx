@@ -2,7 +2,7 @@
 
 import { FieldLabel } from "@puckeditor/core";
 import type { ChangeEvent } from "react";
-import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "./use-image-upload";
+import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "./use-upload";
 
 type ImageFieldProps = {
   label: string;

@@ -17,23 +17,34 @@ import {
 } from "@/components/page-blocks/blocks";
 import { CanvasImagePicker } from "@/components/page-blocks/canvas-image-picker";
 import { ColorField } from "@/components/page-blocks/color-field";
+import { FontField, FontListField } from "@/components/page-blocks/font-field";
+import { ImageEditField } from "@/components/page-blocks/image-edit-field";
 import { ImageField } from "@/components/page-blocks/image-field";
+import type { CustomFont } from "@/lib/page/fonts";
+import { DEFAULT_IMAGE_EDIT, type ImageEdit } from "@/lib/page/image-edit";
 
 // The Puck config is shared by the editor (client) and the public page
 // (server). `metadata.kind` tells lib/page/sanitize.ts how to validate
-// fields whose Puck type alone isn't enough (links, colors, images).
+// fields whose Puck type alone isn't enough (links, colors, images,
+// image edits, fonts).
 
 type Components = {
   Hero: HeroProps;
   Heading: HeadingProps;
-  Text: { content: RichText; color: string };
+  Text: { content: RichText; color: string; font: string };
   Image: ImageProps;
   Button: ButtonProps;
   Columns: { ratio: ColumnsRatio; left: Slot; right: Slot };
   Spacer: { size: SpacerSize };
 };
 
-export type RootProps = { title: string; themeColor: string };
+export type RootProps = {
+  title: string;
+  themeColor: string;
+  headingFont: string;
+  bodyFont: string;
+  customFonts: CustomFont[];
+};
 
 export type PageConfig = Config<Components, RootProps>;
 export type PageData = Data<Components, RootProps>;
@@ -70,6 +81,30 @@ function colorField(label: string) {
   } satisfies CustomField<string>;
 }
 
+/** Image adjustments (filters, crop, flip...) for the block's `imageProp`. */
+function imageEditField(imageProp: string, editProp: string, background = false) {
+  return {
+    type: "custom",
+    label: "Redigera bild",
+    metadata: { kind: "imageEdit", imageProp, background },
+    render: () => (
+      <ImageEditField label="Redigera bild" imageProp={imageProp} editProp={editProp} background={background} />
+    ),
+  } satisfies CustomField<ImageEdit>;
+}
+
+/** A font; empty means the page's font. */
+function fontField(label: string) {
+  return {
+    type: "custom",
+    label,
+    metadata: { kind: "font" },
+    render: ({ value, onChange, readOnly }) => (
+      <FontField label={label} value={value ?? ""} onChange={onChange} readOnly={readOnly} />
+    ),
+  } satisfies CustomField<string>;
+}
+
 export const pageConfig: PageConfig = {
   categories: {
     content: { title: "Innehåll", components: ["Hero", "Heading", "Text", "Image", "Button"] },
@@ -86,10 +121,26 @@ export const pageConfig: PageConfig = {
           <ColorField label={field.label ?? "Temafärg"} value={value} onChange={onChange} readOnly={readOnly} />
         ),
       },
+      headingFont: fontField("Typsnitt för rubriker"),
+      bodyFont: fontField("Typsnitt för text"),
+      customFonts: {
+        type: "custom",
+        label: "Egna typsnitt",
+        metadata: { kind: "fontList" },
+        render: ({ field, value, onChange, readOnly }) => (
+          <FontListField label={field.label ?? "Egna typsnitt"} value={value} onChange={onChange} readOnly={readOnly} />
+        ),
+      },
     },
-    defaultProps: { title: "Min hemsida", themeColor: "#2563eb" },
-    render: ({ title, themeColor, children }) => (
-      <SiteRoot title={title} themeColor={themeColor}>
+    defaultProps: { title: "Min hemsida", themeColor: "#2563eb", headingFont: "", bodyFont: "", customFonts: [] },
+    render: ({ title, themeColor, headingFont, bodyFont, customFonts, children }) => (
+      <SiteRoot
+        title={title}
+        themeColor={themeColor}
+        headingFont={headingFont}
+        bodyFont={bodyFont}
+        customFonts={customFonts}
+      >
         {children}
       </SiteRoot>
     ),
@@ -99,6 +150,7 @@ export const pageConfig: PageConfig = {
       label: "Hero",
       fields: {
         image: imageField("Bakgrundsbild (valfri)"),
+        imageEdit: imageEditField("image", "imageEdit", true),
         title: { type: "text", label: "Rubrik", contentEditable: true },
         subtitle: { type: "textarea", label: "Underrubrik", contentEditable: true },
         ctaText: { type: "text", label: "Knapptext", contentEditable: true },
@@ -114,6 +166,7 @@ export const pageConfig: PageConfig = {
         },
         backgroundColor: colorField("Egen bakgrundsfärg"),
         align: alignField,
+        font: fontField("Typsnitt"),
       },
       defaultProps: {
         image: "",
@@ -123,7 +176,9 @@ export const pageConfig: PageConfig = {
         ctaLink: "mailto:hej@exempel.se",
         background: "theme",
         backgroundColor: "",
+        imageEdit: DEFAULT_IMAGE_EDIT,
         align: "center",
+        font: "",
       },
       render: ({ puck, ...props }) => (
         <Hero
@@ -155,8 +210,9 @@ export const pageConfig: PageConfig = {
         },
         align: alignField,
         color: colorField("Textfärg"),
+        font: fontField("Typsnitt"),
       },
-      defaultProps: { text: "Rubrik", level: "h2", align: "left", color: "" },
+      defaultProps: { text: "Rubrik", level: "h2", align: "left", color: "", font: "" },
       render: (props) => <Heading {...props} />,
     },
     Text: {
@@ -164,14 +220,16 @@ export const pageConfig: PageConfig = {
       fields: {
         content: { type: "richtext", label: "Text" },
         color: colorField("Textfärg"),
+        font: fontField("Typsnitt"),
       },
-      defaultProps: { content: "<p>Skriv din text här.</p>", color: "" },
-      render: ({ content, color }) => <TextBlock content={content} color={color} />,
+      defaultProps: { content: "<p>Skriv din text här.</p>", color: "", font: "" },
+      render: ({ content, color, font }) => <TextBlock content={content} color={color} font={font} />,
     },
     Image: {
       label: "Bild",
       fields: {
         src: imageField("Bild"),
+        edit: imageEditField("src", "edit"),
         alt: { type: "text", label: "Beskrivning (för skärmläsare)" },
         width: {
           type: "select",
@@ -183,7 +241,7 @@ export const pageConfig: PageConfig = {
           ],
         },
       },
-      defaultProps: { src: "", alt: "", width: "wide" },
+      defaultProps: { src: "", alt: "", width: "wide", edit: DEFAULT_IMAGE_EDIT },
       render: ({ puck, ...props }) => (
         <ImageBlock
           {...props}
@@ -210,8 +268,9 @@ export const pageConfig: PageConfig = {
         },
         align: alignField,
         color: colorField("Knappfärg"),
+        font: fontField("Typsnitt"),
       },
-      defaultProps: { label: "Läs mer", href: "#", variant: "filled", align: "left", color: "" },
+      defaultProps: { label: "Läs mer", href: "#", variant: "filled", align: "left", color: "", font: "" },
       render: (props) => <Button {...props} />,
     },
     Columns: {
@@ -256,7 +315,7 @@ export const pageConfig: PageConfig = {
 /** Starting point for new websites. */
 export function starterPage(title = "Min hemsida"): PageData {
   return {
-    root: { props: { title, themeColor: "#2563eb" } },
+    root: { props: { ...pageConfig.root!.defaultProps!, title } },
     content: [
       {
         type: "Hero",
@@ -264,7 +323,7 @@ export function starterPage(title = "Min hemsida"): PageData {
       },
       {
         type: "Heading",
-        props: { id: "heading-1", text: "Om oss", level: "h2", align: "left", color: "" },
+        props: { id: "heading-1", text: "Om oss", level: "h2", align: "left", color: "", font: "" },
       },
       {
         type: "Text",
@@ -272,6 +331,7 @@ export function starterPage(title = "Min hemsida"): PageData {
           id: "text-1",
           content: "<p>Berätta om er verksamhet här. Klicka på blocket för att redigera.</p>",
           color: "",
+          font: "",
         },
       },
     ],

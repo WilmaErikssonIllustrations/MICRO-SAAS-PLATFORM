@@ -2,7 +2,9 @@ import "server-only";
 import type { Field, Fields } from "@puckeditor/core";
 import sanitizeHtml from "sanitize-html";
 import { type PageData, pageConfig } from "@/lib/page/config";
-import { isStoredImageUrl } from "@/lib/storage";
+import { type CustomFont, isFontValue, isValidFontName } from "@/lib/page/fonts";
+import { sanitizeImageEdit } from "@/lib/page/image-edit";
+import { isStoredFontUrl, isStoredImageUrl } from "@/lib/storage";
 
 // Page data arrives from the browser, so it is untrusted: rebuild it from
 // the config, keeping only known components and fields, and clean every
@@ -13,6 +15,7 @@ const MAX_BLOCKS = 300;
 const MAX_TEXT = 2_000;
 const MAX_RICHTEXT = 50_000;
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+const MAX_CUSTOM_FONTS = 10;
 
 const RICHTEXT_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [
@@ -36,6 +39,22 @@ export function isSafeUrl(value: string) {
 }
 
 type Props = Record<string, unknown>;
+
+/** Uploaded fonts: names end up in CSS, so only safe names and our own URLs. */
+function sanitizeFontList(value: unknown): CustomFont[] {
+  if (!Array.isArray(value)) return [];
+  const fonts: CustomFont[] = [];
+  for (const entry of value) {
+    const { name, url } = (entry ?? {}) as Partial<CustomFont>;
+    if (typeof name !== "string" || typeof url !== "string") continue;
+    const trimmed = name.trim();
+    if (!isValidFontName(trimmed) || !isStoredFontUrl(url)) continue;
+    if (fonts.some((font) => font.name === trimmed)) continue;
+    fonts.push({ name: trimmed, url });
+    if (fonts.length === MAX_CUSTOM_FONTS) break;
+  }
+  return fonts;
+}
 
 function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: Budget): unknown {
   const kind = field.metadata?.kind as string | undefined;
@@ -61,6 +80,9 @@ function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: 
     case "custom":
       if (kind === "color") return typeof value === "string" && HEX_COLOR.test(value) ? value : fallback;
       if (kind === "image") return typeof value === "string" && isStoredImageUrl(value) ? value : "";
+      if (kind === "imageEdit") return sanitizeImageEdit(value);
+      if (kind === "font") return isFontValue(value) ? value : "";
+      if (kind === "fontList") return sanitizeFontList(value);
       return fallback;
     default:
       // Field types this config doesn't use are dropped.

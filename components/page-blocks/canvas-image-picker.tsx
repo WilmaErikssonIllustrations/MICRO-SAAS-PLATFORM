@@ -3,7 +3,7 @@
 import { registerOverlayPortal, useGetPuck } from "@puckeditor/core";
 import { type ChangeEvent, useEffect, useRef } from "react";
 import { updateBlockProps } from "./update-block";
-import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "./use-image-upload";
+import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "./use-upload";
 
 type CanvasImagePickerProps = {
   componentId: string;

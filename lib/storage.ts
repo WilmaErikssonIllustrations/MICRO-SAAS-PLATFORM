@@ -41,14 +41,20 @@ export function isStorageConfigured() {
 }
 
 // Keys created by actions/uploads.ts: sites/<websiteId>/<uuid>.<ext>
-const UPLOAD_KEY = /^sites\/[a-z0-9]+\/[0-9a-f-]{36}\.(jpg|png|webp|gif|avif)$/;
+const IMAGE_KEY = /^sites\/[a-z0-9]+\/[0-9a-f-]{36}\.(jpg|png|webp|gif|avif)$/;
+const FONT_KEY = /^sites\/[a-z0-9]+\/fonts\/[0-9a-f-]{36}\.(woff2|woff|ttf|otf)$/;
 
-/** True if the URL is exactly an uploaded image in our bucket. */
-export function isStoredImageUrl(url: string) {
+function isStoredUrl(url: string, key: RegExp) {
   const base = getConfig()?.publicBaseUrl;
   if (!base || !url.startsWith(`${base}/`)) return false;
-  return UPLOAD_KEY.test(url.slice(base.length + 1));
+  return key.test(url.slice(base.length + 1));
 }
+
+/** True if the URL is exactly an uploaded image in our bucket. */
+export const isStoredImageUrl = (url: string) => isStoredUrl(url, IMAGE_KEY);
+
+/** True if the URL is exactly an uploaded font in our bucket. */
+export const isStoredFontUrl = (url: string) => isStoredUrl(url, FONT_KEY);
 
 export async function createUploadUrl({
   key,

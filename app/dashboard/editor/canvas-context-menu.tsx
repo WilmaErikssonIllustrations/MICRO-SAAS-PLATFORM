@@ -1,15 +1,25 @@
 "use client";
 
 import { type ComponentData, createUsePuck, type Field, useGetPuck } from "@puckeditor/core";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useImageEditor } from "@/components/page-blocks/image-editor-context";
 import {
   type PuckApi,
   ROOT_ZONE,
   updateBlockProps,
   updateRootProps,
 } from "@/components/page-blocks/update-block";
+import { ACCEPTED_FONT_TYPES, useFontUpload } from "@/components/page-blocks/use-upload";
 import type { PageConfig } from "@/lib/page/config";
+import {
+  type CustomFont,
+  customFontValue,
+  fontFamily,
+  fontLabel,
+  fontNameFromFile,
+  GOOGLE_FONTS,
+} from "@/lib/page/fonts";
 import {
   ActionRow,
   ColorPicker,
@@ -148,6 +158,7 @@ function BlockMenu({ id, close }: { id: string; close: () => void }) {
           name={name}
           field={field}
           value={item.props[name]}
+          block={{ id, props: item.props }}
           optionalColor
           onChange={(value) =>
             // Picking Ljus/Mörk etc. should win over a custom hero color.
@@ -288,6 +299,7 @@ function FieldItem({
   value,
   onChange,
   close,
+  block,
   optionalColor,
 }: {
   name: string;
@@ -295,8 +307,11 @@ function FieldItem({
   value: unknown;
   onChange: (value: unknown) => void;
   close: () => void;
+  /** The block the field belongs to; absent for page fields. */
+  block?: { id: string; props: Record<string, unknown> };
   optionalColor?: boolean;
 }) {
+  const imageEditor = useImageEditor();
   // "Bakgrundsbild (valfri)" -> "Bakgrundsbild": the menu is narrow.
   const label = (field.label ?? name).replace(/\s*\(.*\)$/, "");
   const kind = field.metadata?.kind as string | undefined;
@@ -382,11 +397,100 @@ function FieldItem({
           />
         );
       }
+      if (kind === "imageEdit") {
+        const imageProp = field.metadata?.imageProp as string;
+        const hasImage = Boolean(block?.props[imageProp]);
+        if (!block || !imageEditor) return null;
+        return (
+          <MenuItem
+            label={hasImage ? "Redigera bild..." : "Redigera bild (ingen bild)"}
+            disabled={!hasImage}
+            icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
+            onSelect={() => {
+              imageEditor.open({
+                blockId: block.id,
+                imageProp,
+                editProp: name,
+                background: Boolean(field.metadata?.background),
+              });
+              close();
+            }}
+          />
+        );
+      }
+      if (kind === "font") {
+        return (
+          <MenuItem
+            label={label}
+            icon={<Icon><path d="M4 20 10 4h1l6 16M6.5 14h8" /></Icon>}
+            hint={<span style={{ fontFamily: fontFamily(text) }}>{fontLabel(text)}</span>}
+            submenu={
+              <FontPicker
+                value={text}
+                onChange={(font) => {
+                  onChange(font);
+                  close();
+                }}
+              />
+            }
+          />
+        );
+      }
       return null;
     }
     default:
       return null;
   }
+}
+
+/** Fonts shown in their own typeface, plus uploading a new one. */
+function FontPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const getPuck = useGetPuck();
+  const stored = usePuck((s) => s.appState.data.root.props?.customFonts);
+  const customFonts: CustomFont[] = Array.isArray(stored) ? stored : [];
+  const { upload, uploading, error } = useFontUpload();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const url = await upload(file);
+    if (!url) return;
+    const name = fontNameFromFile(file.name, customFonts.map((font) => font.name));
+    // Add it to the page's fonts, then use it right away.
+    updateRootProps(getPuck(), { customFonts: [...customFonts, { name, url }] });
+    onChange(customFontValue(name));
+  }
+
+  const option = (font: string) => (
+    <OptionRow
+      key={font}
+      label={fontLabel(font)}
+      selected={value === font}
+      labelStyle={{ fontFamily: fontFamily(font), fontSize: 15 }}
+      onSelect={() => onChange(font)}
+    />
+  );
+
+  return (
+    <>
+      <ActionRow
+        label={uploading ? "Laddar upp..." : "Ladda upp typsnitt..."}
+        disabled={uploading}
+        icon={<Icon><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></Icon>}
+        onSelect={() => inputRef.current?.click()}
+      />
+      {error && <p className="px-2.5 py-1 text-xs text-red-600">{error}</p>}
+      <input ref={inputRef} type="file" accept={ACCEPTED_FONT_TYPES} onChange={handleFile} className="hidden" />
+      <MenuDivider />
+      {option("")}
+      {customFonts.length > 0 && <MenuHeader>Dina typsnitt</MenuHeader>}
+      {customFonts.map((font) => option(customFontValue(font.name)))}
+      <MenuHeader>Google Fonts</MenuHeader>
+      {GOOGLE_FONTS.map((font) => option(font.name))}
+    </>
+  );
 }
 
 function BlockPicker({ onPick }: { onPick: (type: string) => void }) {

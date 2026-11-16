@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { getContrastText } from "@/lib/color";
+import { type CustomFont, fontCss, fontFamily } from "@/lib/page/fonts";
+import { type ImageEdit, imageEditStyle, imageFrameStyle } from "@/lib/page/image-edit";
 
 // Presentational building blocks for published pages. They hold no state,
 // so they render both in the Puck editor and in Server Components.
@@ -23,17 +25,50 @@ function themeStyle(color: string | undefined) {
   return { "--theme": color, "--theme-contrast": getContrastText(color) } as CSSProperties;
 }
 
+/**
+ * Props for a block with its own font ("" means the page's font). Headings
+ * inside such a block follow it instead of the page's heading font.
+ */
+function fontProps(font: string | undefined) {
+  const family = fontFamily(font);
+  return family ? { style: { fontFamily: family }, "data-font": "" } : {};
+}
+
+/** Loads a block's Google font; uploaded fonts are loaded by SiteRoot. */
+function FontImport({ font }: { font: string | undefined }) {
+  const css = fontCss([font]);
+  return css ? <style>{css}</style> : null;
+}
+
+export type SiteFonts = { headingFont: string; bodyFont: string; customFonts: CustomFont[] };
+
 export function SiteRoot({
   title,
   themeColor,
+  headingFont,
+  bodyFont,
+  customFonts,
   children,
 }: {
   title: string;
   themeColor: string;
   children: ReactNode;
-}) {
+} & Partial<SiteFonts>) {
+  const style = {
+    ...themeStyle(themeColor),
+    fontFamily: fontFamily(bodyFont),
+    "--font-heading": fontFamily(headingFont) ?? "inherit",
+  } as CSSProperties;
+  // Font names and URLs are validated in lib/page/sanitize.ts.
+  const css = [
+    fontCss([headingFont, bodyFont], customFonts),
+    ".site-root :is(h1,h2,h3){font-family:var(--font-heading)}",
+    ".site-root [data-font] :is(h1,h2,h3){font-family:inherit}",
+  ].join("\n");
+
   return (
-    <div style={themeStyle(themeColor)} className="flex min-h-full flex-col bg-white text-zinc-900">
+    <div style={style} className="site-root flex min-h-full flex-col bg-white text-zinc-900">
+      <style>{css}</style>
       <main className="flex-1">{children}</main>
       <footer className="border-t border-zinc-200">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-1 px-6 py-8 text-center text-sm text-zinc-500">
@@ -60,7 +95,9 @@ export type HeroProps = {
   background: keyof typeof heroBackground;
   /** Overrides `background` when set. Empty means unset. */
   backgroundColor: string;
+  imageEdit: ImageEdit;
   align: Align;
+  font: string;
 };
 
 /** Editor-only controls (e.g. "Byt bild") shown on top of an image. */
@@ -74,20 +111,30 @@ export function Hero({
   ctaLink,
   background,
   backgroundColor,
+  imageEdit,
   align,
+  font,
   imageControls,
 }: HeroProps & ImageControls) {
   // A custom color works like the theme background, in that color.
   const shade = backgroundColor ? "theme" : background;
+  const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <section
-      style={image ? undefined : themeStyle(backgroundColor)}
-      className={`group relative isolate ${image ? "bg-zinc-900 text-white" : heroBackground[shade]}`}
+      {...fontAttrs}
+      style={{ ...(image ? undefined : themeStyle(backgroundColor)), ...fontStyle }}
+      className={`group relative isolate overflow-hidden ${image ? "bg-zinc-900 text-white" : heroBackground[shade]}`}
     >
+      <FontImport font={font} />
       {image && (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
-          <img src={image} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" />
+          <img
+            src={image}
+            alt=""
+            style={imageEditStyle(imageEdit)}
+            className="absolute inset-0 -z-10 h-full w-full object-cover"
+          />
           <div className="absolute inset-0 -z-10 bg-black/50" />
         </>
       )}
@@ -114,13 +161,20 @@ export function Hero({
   );
 }
 
-export type HeadingProps = { text: string; level: "h2" | "h3"; align: Align; color: string };
+export type HeadingProps = {
+  text: string;
+  level: "h2" | "h3";
+  align: Align;
+  color: string;
+  font: string;
+};
 
-export function Heading({ text, level: Tag, align, color }: HeadingProps) {
+export function Heading({ text, level: Tag, align, color, font }: HeadingProps) {
   return (
     <div className={`mx-auto flex max-w-3xl flex-col px-6 pt-12 ${alignClass[align]}`}>
+      <FontImport font={font} />
       <Tag
-        style={color ? { color } : undefined}
+        style={{ color: color || undefined, fontFamily: fontFamily(font) }}
         className={
           Tag === "h2"
             ? "text-3xl font-bold tracking-tight"
@@ -133,12 +187,15 @@ export function Heading({ text, level: Tag, align, color }: HeadingProps) {
   );
 }
 
-export function TextBlock({ content, color }: { content: ReactNode; color?: string }) {
+export function TextBlock({ content, color, font }: { content: ReactNode; color?: string; font?: string }) {
+  const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <div
-      style={color ? { color } : undefined}
+      {...fontAttrs}
+      style={{ color: color || undefined, ...fontStyle }}
       className="mx-auto max-w-3xl px-6 py-6 text-lg leading-relaxed text-zinc-700 [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-zinc-900 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic"
     >
+      <FontImport font={font} />
       {content}
     </div>
   );
@@ -150,12 +207,19 @@ export type ButtonProps = {
   variant: "filled" | "outline";
   align: Align;
   color: string;
+  font: string;
 };
 
-export function Button({ label, href, variant, align, color }: ButtonProps) {
+export function Button({ label, href, variant, align, color, font }: ButtonProps) {
   if (!label) return null;
+  const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
-    <div style={themeStyle(color)} className={`mx-auto flex max-w-3xl flex-col px-6 pb-6 ${alignClass[align]}`}>
+    <div
+      {...fontAttrs}
+      style={{ ...themeStyle(color), ...fontStyle }}
+      className={`mx-auto flex max-w-3xl flex-col px-6 pb-6 ${alignClass[align]}`}
+    >
+      <FontImport font={font} />
       <ButtonLink href={href || "#"} variant={variant}>
         {label}
       </ButtonLink>
@@ -216,9 +280,9 @@ export function Columns({
 
 const imageWidth = { narrow: "max-w-2xl", wide: "max-w-5xl", full: "max-w-none" } as const;
 
-export type ImageProps = { src: string; alt: string; width: keyof typeof imageWidth };
+export type ImageProps = { src: string; alt: string; width: keyof typeof imageWidth; edit: ImageEdit };
 
-export function ImageBlock({ src, alt, width, imageControls }: ImageProps & ImageControls) {
+export function ImageBlock({ src, alt, width, edit, imageControls }: ImageProps & ImageControls) {
   if (!src) {
     // An empty image is only shown in the editor, as a place to upload one.
     if (!imageControls) return null;
@@ -233,13 +297,20 @@ export function ImageBlock({ src, alt, width, imageControls }: ImageProps & Imag
   }
   return (
     <figure className={`group relative mx-auto py-6 ${width === "full" ? "" : "px-6"} ${imageWidth[width]}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        className={`h-auto w-full object-cover ${width === "full" ? "" : "rounded-xl"}`}
-      />
+      {/* The frame crops (format, zoom) and rounds the corners. */}
+      <div
+        style={{ ...imageFrameStyle(edit), ...(width === "full" && { borderRadius: 0 }) }}
+        className="overflow-hidden"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          style={imageEditStyle(edit)}
+          className={`block w-full object-cover ${edit?.aspect && edit.aspect !== "original" ? "h-full" : "h-auto"}`}
+        />
+      </div>
       {imageControls && <HoverControls>{imageControls}</HoverControls>}
     </figure>
   );

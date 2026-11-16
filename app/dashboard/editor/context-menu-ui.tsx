@@ -2,6 +2,7 @@
 
 import {
   type ChangeEvent,
+  type CSSProperties,
   createContext,
   type ReactNode,
   type Ref,
@@ -10,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "@/components/page-blocks/use-image-upload";
+import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "@/components/page-blocks/use-upload";
 
 // Building blocks for the editor's right-click menu: a menu panel, rows
 // that can open a submenu to the side, and the controls used in submenus.
@@ -128,7 +129,7 @@ function Submenu({ flip, children }: { flip: boolean; children: ReactNode }) {
       ref={ref}
       role="menu"
       style={{ width: MENU_WIDTH }}
-      className={`absolute -top-1.5 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ${
+      className={`absolute -top-1.5 max-h-[70vh] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ${
         flip ? "right-full mr-1.5" : "left-full ml-1.5"
       }`}
     >
@@ -173,11 +174,14 @@ export function OptionRow({
   selected,
   onSelect,
   preview,
+  labelStyle,
 }: {
   label: string;
   selected: boolean;
   onSelect: () => void;
   preview?: ReactNode;
+  /** E.g. a font, to show each font in itself. */
+  labelStyle?: CSSProperties;
 }) {
   return (
     <button
@@ -197,7 +201,9 @@ export function OptionRow({
         )}
       </span>
       {preview}
-      <span className="flex-1 truncate">{label}</span>
+      <span style={labelStyle} className="flex-1 truncate">
+        {label}
+      </span>
     </button>
   );
 }
