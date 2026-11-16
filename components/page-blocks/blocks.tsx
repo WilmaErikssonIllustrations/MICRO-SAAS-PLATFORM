@@ -26,6 +26,14 @@ const alignClass: Record<Align, string> = {
   right: "items-end text-right",
 };
 
+/** Aligns one item in a flex column on its own ("" follows the column). */
+const selfAlignClass: Record<Align | "", string> = {
+  "": "",
+  left: "self-start text-left",
+  center: "self-center text-center",
+  right: "self-end text-right",
+};
+
 /**
  * Sets the theme color variables the blocks read. Blocks with their own
  * color (an empty string means "use the theme") override them locally.
@@ -148,6 +156,15 @@ export type HeroProps = {
    * Missing on older pages, which then show the whole image too.
    */
   mobileFit: "whole" | "stack" | "same";
+  /**
+   * Settings for one part of the hero (`data-part` below), so the title,
+   * subtitle and button can be changed on their own. Empty follows the hero.
+   */
+  titleAlign: Align | "";
+  subtitleAlign: Align | "";
+  ctaAlign: Align | "";
+  titleColor: string;
+  subtitleColor: string;
   /** Button colors; empty means picked from the background. */
   buttonColor: string;
   buttonTextColor: string;
@@ -231,6 +248,11 @@ export function Hero({
   heroHeightUnit,
   imageFit,
   mobileFit,
+  titleAlign,
+  subtitleAlign,
+  ctaAlign,
+  titleColor,
+  subtitleColor,
   buttonColor,
   buttonTextColor,
   align,
@@ -295,11 +317,20 @@ export function Hero({
           heroDesktopLayout[desktop].content
         } ${contentHeight} ${alignClass[align]}`}
       >
-        <h1 data-resize-box className="max-w-3xl text-[length:calc(2.25rem*var(--fs,1))] leading-(--lh,1.11) font-bold tracking-(--ls,-0.025em) text-balance sm:text-[length:calc(3.75rem*var(--fs,1))] sm:leading-(--lh,1)">
+        <h1
+          data-resize-box
+          data-part="title"
+          style={{ color: titleColor || undefined }}
+          className={`${selfAlignClass[titleAlign ?? ""]} max-w-3xl text-[length:calc(2.25rem*var(--fs,1))] leading-(--lh,1.11) font-bold tracking-(--ls,-0.025em) text-balance sm:text-[length:calc(3.75rem*var(--fs,1))] sm:leading-(--lh,1)`}
+        >
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-6 max-w-2xl text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.56) tracking-(--ls,normal) text-pretty opacity-90 sm:text-[length:calc(1.25rem*var(--fs,1))] sm:leading-(--lh,1.4)">
+          <p
+            data-part="subtitle"
+            style={{ color: subtitleColor || undefined }}
+            className={`${selfAlignClass[subtitleAlign ?? ""]} mt-6 max-w-2xl text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.56) tracking-(--ls,normal) text-pretty opacity-90 sm:text-[length:calc(1.25rem*var(--fs,1))] sm:leading-(--lh,1.4)`}
+          >
             {subtitle}
           </p>
         )}
@@ -311,6 +342,8 @@ export function Hero({
             variant={shade === "theme" && !image && !buttonColor ? "inverted" : "filled"}
             color={buttonColor}
             textColor={buttonTextColor}
+            part="cta"
+            className={selfAlignClass[ctaAlign ?? ""]}
           >
             {ctaText}
           </ButtonLink>
@@ -433,6 +466,8 @@ function ButtonLink({
   color,
   textColor,
   resizeBox,
+  part,
+  className = "",
   children,
 }: {
   href: string;
@@ -441,15 +476,19 @@ function ButtonLink({
   color?: string;
   textColor?: string;
   resizeBox?: boolean;
+  /** Marks the button as a part of a bigger block (see Hero). */
+  part?: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
     <a
       data-resize-box={resizeBox || undefined}
+      data-part={part}
       href={href}
       rel="noopener noreferrer"
       style={{ ...themeStyle(color), color: textColor || undefined }}
-      className={`mt-10 inline-flex items-center rounded-full px-8 py-3 text-[length:calc(1rem*var(--fs,1))] leading-(--lh,1.5) font-semibold tracking-(--ls,normal) shadow-sm transition-transform hover:scale-105 ${buttonVariant[variant]}`}
+      className={`${className} mt-10 inline-flex items-center rounded-full px-8 py-3 text-[length:calc(1rem*var(--fs,1))] leading-(--lh,1.5) font-semibold tracking-(--ls,normal) shadow-sm transition-transform hover:scale-105 ${buttonVariant[variant]}`}
     >
       {children}
     </a>

@@ -77,6 +77,8 @@ export function MenuDivider() {
 }
 
 type MenuItemProps = {
+  /** Tells rows with the same label apart (defaults to the label). */
+  id?: string;
   label: string;
   icon?: ReactNode;
   /** Shown to the right, e.g. the current value. */
@@ -88,19 +90,20 @@ type MenuItemProps = {
   submenu?: ReactNode;
 };
 
-export function MenuItem({ label, icon, hint, disabled, danger, onSelect, submenu }: MenuItemProps) {
+export function MenuItem({ id, label, icon, hint, disabled, danger, onSelect, submenu }: MenuItemProps) {
   const { openId, setOpenId, flip } = useContext(MenuContext);
-  const open = submenu !== undefined && openId === label;
+  const key = id ?? label;
+  const open = submenu !== undefined && openId === key;
 
   return (
-    <div className="relative" onMouseEnter={() => setOpenId(submenu !== undefined ? label : null)}>
+    <div className="relative" onMouseEnter={() => setOpenId(submenu !== undefined ? key : null)}>
       <button
         type="button"
         role="menuitem"
         aria-haspopup={submenu !== undefined || undefined}
         aria-expanded={submenu !== undefined ? open : undefined}
         disabled={disabled}
-        onClick={() => (submenu !== undefined ? setOpenId(label) : onSelect?.())}
+        onClick={() => (submenu !== undefined ? setOpenId(key) : onSelect?.())}
         className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left disabled:cursor-default disabled:opacity-40 ${
           danger
             ? "text-red-600 hover:bg-red-50"

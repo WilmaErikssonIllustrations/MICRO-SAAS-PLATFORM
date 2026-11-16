@@ -111,6 +111,17 @@ function colorField(label: string) {
 }
 
 /** Image adjustments (filters, crop, flip...) for the block's `imageProp`. */
+/** Alignment for one part of a block; empty follows the block's Justering. */
+function partAlignField(label: string, part: string) {
+  return {
+    type: "radio",
+    label,
+    // menuLabel: the right-click menu lists these under the part's name.
+    metadata: { part, menuLabel: "Justering" },
+    options: [{ label: "Som heron", value: "" }, ...alignField.options],
+  } as const;
+}
+
 function imageEditField(imageProp: string, editProp: string, background = false, label = "Redigera bild") {
   return {
     type: "custom",
@@ -281,11 +292,22 @@ export const pageConfig: PageConfig = {
           ],
         },
         title: { type: "text", label: "Rubrik", contentEditable: true },
+        titleAlign: partAlignField("Rubrikens justering", "title"),
+        titleColor: { ...colorField("Rubrikens färg"), metadata: { kind: "color", part: "title", menuLabel: "Färg" } },
         subtitle: { type: "textarea", label: "Underrubrik", contentEditable: true },
+        subtitleAlign: partAlignField("Underrubrikens justering", "subtitle"),
+        subtitleColor: {
+          ...colorField("Underrubrikens färg"),
+          metadata: { kind: "color", part: "subtitle", menuLabel: "Färg" },
+        },
         ctaText: { type: "text", label: "Knapptext", contentEditable: true },
-        ctaLink: { type: "text", label: "Knapplänk", metadata: { kind: "url" } },
-        buttonColor: colorField("Knappfärg"),
-        buttonTextColor: colorField("Knappens textfärg"),
+        ctaAlign: partAlignField("Knappens justering", "cta"),
+        ctaLink: { type: "text", label: "Knapplänk", metadata: { kind: "url", part: "cta", menuLabel: "Länk" } },
+        buttonColor: { ...colorField("Knappfärg"), metadata: { kind: "color", part: "cta", menuLabel: "Färg" } },
+        buttonTextColor: {
+          ...colorField("Knappens textfärg"),
+          metadata: { kind: "color", part: "cta", menuLabel: "Textfärg" },
+        },
         background: {
           type: "radio",
           label: "Bakgrund",
@@ -313,6 +335,11 @@ export const pageConfig: PageConfig = {
         overlay: "none",
         imageFit: "cover",
         mobileFit: "whole",
+        titleAlign: "",
+        subtitleAlign: "",
+        ctaAlign: "",
+        titleColor: "",
+        subtitleColor: "",
         heroHeight: 0,
         heroHeightUnit: "px",
         buttonColor: "",

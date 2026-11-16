@@ -51,7 +51,14 @@ import { ResizeHandles } from "./resize-handles";
 const usePuck = createUsePuck<PageConfig>();
 
 /** Where the menu was opened; `id` is null for the page itself. */
-type MenuTarget = { x: number; y: number; id: string | null };
+/**
+ * Where the menu was opened; `id` is null for the page itself. `part` is
+ * the part of a block that was clicked (e.g. the Hero's title), see
+ * `data-part` in components/page-blocks/blocks.tsx.
+ */
+type MenuTarget = { x: number; y: number; id: string | null; part: string | null };
+
+const PART_LABELS: Record<string, string> = { title: "Rubrik", subtitle: "Underrubrik", cta: "Knapp" };
 
 // Survives closing the menu, so a copied block can be pasted elsewhere.
 let clipboard: ComponentData | null = null;
@@ -87,8 +94,15 @@ function CanvasContextMenu({ doc }: { doc?: Document }) {
       if (element?.closest("[contenteditable='true']") && selection && !selection.isCollapsed) return;
       event.preventDefault();
 
-      const id = element?.closest("[data-puck-component]")?.getAttribute("data-puck-component") ?? null;
+      const blockElement = element?.closest("[data-puck-component]");
+      const id = blockElement?.getAttribute("data-puck-component") ?? null;
       const selector = id ? getPuck().getSelectorForId(id) : undefined;
+      // Only a part of this block, not of a block nested inside it.
+      const partElement = element?.closest("[data-part]");
+      const part =
+        partElement && partElement.closest("[data-puck-component]") === blockElement
+          ? partElement.getAttribute("data-part")
+          : null;
       getPuck().dispatch({ type: "setUi", ui: { itemSelector: selector ?? null } });
 
       // The preview is scaled to fit, so map iframe coordinates to the page.
@@ -99,6 +113,7 @@ function CanvasContextMenu({ doc }: { doc?: Document }) {
         x: (rect?.left ?? 0) + event.clientX * scale,
         y: (rect?.top ?? 0) + event.clientY * scale,
         id: selector ? id : null,
+        part,
       });
     };
 
@@ -140,13 +155,13 @@ function CanvasContextMenu({ doc }: { doc?: Document }) {
 
   return createPortal(
     <Menu key={`${target.x}:${target.y}`} x={target.x} y={target.y} menuRef={menuRef}>
-      {target.id ? <BlockMenu id={target.id} close={close} /> : <PageMenu close={close} />}
+      {target.id ? <BlockMenu id={target.id} part={target.part} close={close} /> : <PageMenu close={close} />}
     </Menu>,
     document.body,
   );
 }
 
-function BlockMenu({ id, close }: { id: string; close: () => void }) {
+function BlockMenu({ id, part, close }: { id: string; part: string | null; close: () => void }) {
   const getPuck = useGetPuck();
   // Re-render on every change so the menu shows current values.
   usePuck((s) => s.appState.data);
@@ -158,6 +173,12 @@ function BlockMenu({ id, close }: { id: string; close: () => void }) {
   const { index, zone } = selector;
   const component = puck.config.components[item.type];
   const fields = Object.entries(component?.fields ?? {}) as [string, Field][];
+  // Fields of one part of the block (metadata.part) come first when that
+  // part was clicked, so a change there only affects that part. The rest
+  // apply to the whole block.
+  const partOf = (field: Field) => field.metadata?.part as string | undefined;
+  const partFields = part ? fields.filter(([, field]) => partOf(field) === part) : [];
+  const blockFields = fields.filter(([, field]) => !partOf(field));
   const count = zoneLength(puck, zone);
   const run = (action: () => void) => {
     action();
@@ -179,7 +200,26 @@ function BlockMenu({ id, close }: { id: string; close: () => void }) {
         }
       />
       <MenuDivider />
-      {fields.map(([name, field]) => (
+      {partFields.length > 0 && (
+        <>
+          <MenuHeader>{PART_LABELS[part ?? ""] ?? part}</MenuHeader>
+          {partFields.map(([name, field]) => (
+            <FieldItem
+              key={name}
+              name={name}
+              field={field}
+              value={item.props[name]}
+              block={{ id, props: item.props }}
+              optionalColor
+              onChange={(value) => updateBlockProps(getPuck(), id, { [name]: value })}
+              close={close}
+            />
+          ))}
+          <MenuDivider />
+          <MenuHeader>{`Hela ${(component?.label ?? item.type).toLowerCase()}n`}</MenuHeader>
+        </>
+      )}
+      {blockFields.map(([name, field]) => (
         <FieldItem
           key={name}
           name={name}
@@ -436,8 +476,9 @@ function FieldItem({
   optionalColor?: boolean;
 }) {
   const imageEditor = useImageEditor();
-  // "Bakgrundsbild (valfri)" -> "Bakgrundsbild": the menu is narrow.
-  const label = (field.label ?? name).replace(/\s*\(.*\)$/, "");
+  // "Bakgrundsbild (valfri)" -> "Bakgrundsbild": the menu is narrow. A
+  // field can also give a shorter menu label of its own.
+  const label = (field.metadata?.menuLabel as string | undefined) ?? (field.label ?? name).replace(/\s*\(.*\)$/, "");
   const kind = field.metadata?.kind as string | undefined;
   if (field.visible === false) return null;
 
@@ -449,6 +490,7 @@ function FieldItem({
       const screenShare = unitProp && block?.props[unitProp] === "vh";
       return (
         <MenuItem
+          id={name}
           label={label}
           icon={<Icon><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" /></Icon>}
           hint={number > 0 ? `${number} ${screenShare ? "%" : "px"}` : "Auto"}
@@ -473,6 +515,7 @@ function FieldItem({
       const current = field.options.find((option) => option.value === value);
       return (
         <MenuItem
+          id={name}
           label={label}
           icon={<Icon><path d="M4 7h16M4 12h10M4 17h6" /></Icon>}
           hint={current?.label}
@@ -496,6 +539,7 @@ function FieldItem({
       const text = typeof value === "string" ? value : "";
       return (
         <MenuItem
+          id={name}
           label={label}
           icon={
             kind === "url" ? (
@@ -523,6 +567,7 @@ function FieldItem({
       if (kind === "color") {
         return (
           <MenuItem
+            id={name}
             label={label}
             icon={<Icon><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" /></Icon>}
             hint={<Swatch color={text} />}
@@ -533,6 +578,7 @@ function FieldItem({
       if (kind === "image") {
         return (
           <MenuItem
+            id={name}
             label={label}
             icon={<Icon><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 16-5-5-9 9" /></Icon>}
             hint={text ? "Vald" : "Ingen"}
@@ -555,6 +601,7 @@ function FieldItem({
         if (!block || !imageEditor || !hasImage) return null;
         return (
           <MenuItem
+            id={name}
             label={`${label}...`}
             icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
             onSelect={() => {
@@ -574,6 +621,7 @@ function FieldItem({
         const basePx = resolveBasePx(field.metadata as TypographyMetadata, block?.props);
         return (
           <MenuItem
+            id={name}
             label={label}
             icon={<Icon><path d="M4 7V5h10v2M9 5v14M7 19h4M14 13v-1h6v1M17 12v7M15.5 19h3" /></Icon>}
             hint={typographySummary(typography, basePx)}
@@ -585,6 +633,7 @@ function FieldItem({
         const box = value as Partial<Box> | undefined;
         return (
           <MenuItem
+            id={name}
             label={label}
             icon={<Icon><rect x="4" y="5" width="16" height="14" rx="3" /></Icon>}
             hint={boxSummary(box)}
@@ -597,6 +646,7 @@ function FieldItem({
         const columns = typeof block?.props.count === "number" ? block.props.count : 2;
         return (
           <MenuItem
+            id={name}
             label={label}
             icon={<Icon><path d="M4 5v14M12 5v14M20 5v14" /></Icon>}
             submenu={Array.from({ length: columns }, (_, index) => (
@@ -616,6 +666,7 @@ function FieldItem({
         const widths = Array.isArray(value) ? (value as number[]) : [];
         return (
           <MenuItem
+            id={name}
             label="Gör kolumnerna lika breda"
             disabled={widths.length === 0}
             icon={<Icon><path d="M4 5v14M12 5v14M20 5v14" /></Icon>}
@@ -630,6 +681,7 @@ function FieldItem({
       if (kind === "font") {
         return (
           <MenuItem
+            id={name}
             label={label}
             icon={<Icon><path d="M4 20 10 4h1l6 16M6.5 14h8" /></Icon>}
             hint={<span style={{ fontFamily: fontFamily(text) }}>{fontLabel(text)}</span>}
