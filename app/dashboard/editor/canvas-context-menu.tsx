@@ -216,86 +216,117 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
     );
   }
 
+  // Picking Ljus/Mörk etc. should win over a custom hero color.
+  const changeField = (name: string, value: unknown) =>
+    updateBlockProps(
+      getPuck(),
+      id,
+      name === "background" && "backgroundColor" in item.props
+        ? { background: value, backgroundColor: "" }
+        : { [name]: value },
+    );
+  const fieldItem = ([name, field]: [string, Field]) => (
+    <FieldItem
+      key={name}
+      name={name}
+      field={field}
+      value={item.props[name]}
+      block={{ id, props: item.props }}
+      optionalColor
+      onChange={(value) => changeField(name, value)}
+      close={close}
+    />
+  );
+  // Grouped fields (metadata.group) become one row with a submenu each.
+  const groupOf = (field: Field) => field.metadata?.group as string | undefined;
+  const topFields = blockFields.filter(([, field]) => !groupOf(field));
+  const groups = new Map<string, [string, Field][]>();
+  for (const entry of blockFields) {
+    const group = groupOf(entry[1]);
+    if (group) groups.set(group, [...(groups.get(group) ?? []), entry]);
+  }
+
   return (
     <>
       <MenuHeader>{layerLabel(puck, item)}</MenuHeader>
-      <MenuItem
-        label="Byt namn..."
-        icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
-        submenu={
-          <TextInput
-            value={typeof item.props.layerName === "string" ? item.props.layerName : ""}
-            placeholder={component?.label ?? item.type}
-            onSave={(name) => run(() => renameLayer(getPuck(), id, name))}
-          />
-        }
-      />
-      <MenuDivider />
-      {blockFields.map(([name, field]) => (
-        <FieldItem
-          key={name}
-          name={name}
-          field={field}
-          value={item.props[name]}
-          block={{ id, props: item.props }}
-          optionalColor
-          onChange={(value) =>
-            // Picking Ljus/Mörk etc. should win over a custom hero color.
-            updateBlockProps(
-              getPuck(),
-              id,
-              name === "background" && "backgroundColor" in item.props
-                ? { background: value, backgroundColor: "" }
-                : { [name]: value },
-            )
-          }
-          close={close}
+      {topFields.map(fieldItem)}
+      {(groups.size > 0 || puck.getItemById(zone.split(":")[0])) && <MenuDivider />}
+      {[...groups].map(([group, entries]) => (
+        <MenuItem
+          key={group}
+          id={`group:${group}`}
+          label={GROUP_LABELS[group] ?? group}
+          icon={<Icon><rect x="4" y="5" width="16" height="14" rx="3" /><path d="M4 15l4-4 4 4 3-3 5 5" /></Icon>}
+          submenu={entries.map(fieldItem)}
         />
       ))}
+      <ContainerItems zone={zone} close={close} />
+      <MenuDivider />
+      <MenuItem
+        label="Ordna"
+        icon={<Icon><path d="M4 7h16M4 12h16M4 17h16" /></Icon>}
+        submenu={
+          <>
+            <MenuItem
+              label="Byt namn..."
+              icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
+              submenu={
+                <TextInput
+                  value={typeof item.props.layerName === "string" ? item.props.layerName : ""}
+                  placeholder={component?.label ?? item.type}
+                  onSave={(name) => run(() => renameLayer(getPuck(), id, name))}
+                />
+              }
+            />
+            <MenuItem
+              label="Flytta upp"
+              disabled={index === 0}
+              icon={<Icon><path d="M12 19V5M6 11l6-6 6 6" /></Icon>}
+              onSelect={() => run(() => move(puck, zone, index, index - 1))}
+            />
+            <MenuItem
+              label="Flytta ner"
+              disabled={index >= count - 1}
+              icon={<Icon><path d="M12 5v14M6 13l6 6 6-6" /></Icon>}
+              onSelect={() => run(() => move(puck, zone, index, index + 1))}
+            />
+            <MenuDivider />
+            <MenuItem
+              label="Duplicera"
+              icon={<Icon><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M4 16V6a2 2 0 0 1 2-2h10" /></Icon>}
+              onSelect={() => run(() => puck.dispatch({ type: "duplicate", sourceIndex: index, sourceZone: zone }))}
+            />
+            <MenuItem
+              label="Kopiera"
+              icon={<Icon><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></Icon>}
+              onSelect={() => run(() => (clipboard = structuredClone(item)))}
+            />
+            <MenuItem
+              label="Klistra in under"
+              disabled={!clipboard}
+              icon={<Icon><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4V3h6v1" /></Icon>}
+              onSelect={() => run(() => clipboard && insertBlock(getPuck, clipboard.type, zone, index + 1, clipboard))}
+            />
+            <MenuDivider />
+            <MenuItem
+              label="Lägg till block under"
+              icon={<Icon><path d="M12 5v14M5 12h14" /></Icon>}
+              submenu={<BlockPicker onPick={(type) => run(() => insertBlock(getPuck, type, zone, index + 1))} />}
+            />
+            <MenuItem
+              label="Lägg i sektion"
+              icon={<Icon><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M7 9h10M7 13h6" /></Icon>}
+              onSelect={() => run(() => wrapInSection(getPuck, id))}
+            />
+          </>
+        }
+      />
       <MenuItem
         label="Alla inställningar"
         icon={<Icon><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></Icon>}
         onSelect={() =>
-          run(() =>
-            puck.dispatch({ type: "setUi", ui: { itemSelector: selector, rightSideBarVisible: true } }),
-          )
+          run(() => puck.dispatch({ type: "setUi", ui: { itemSelector: selector, rightSideBarVisible: true } }))
         }
-      />
-      <MenuDivider />
-      <ContainerItems id={id} zone={zone} close={close} />
-      <MenuDivider />
-      <MenuItem
-        label="Lägg till block under"
-        icon={<Icon><path d="M12 5v14M5 12h14" /></Icon>}
-        submenu={<BlockPicker onPick={(type) => run(() => insertBlock(getPuck, type, zone, index + 1))} />}
-      />
-      <MenuItem
-        label="Kopiera"
-        icon={<Icon><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></Icon>}
-        onSelect={() => run(() => (clipboard = structuredClone(item)))}
-      />
-      <MenuItem
-        label="Klistra in under"
-        disabled={!clipboard}
-        icon={<Icon><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4V3h6v1" /></Icon>}
-        onSelect={() => run(() => clipboard && insertBlock(getPuck, clipboard.type, zone, index + 1, clipboard))}
-      />
-      <MenuItem
-        label="Duplicera"
-        icon={<Icon><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M4 16V6a2 2 0 0 1 2-2h10" /></Icon>}
-        onSelect={() => run(() => puck.dispatch({ type: "duplicate", sourceIndex: index, sourceZone: zone }))}
-      />
-      <MenuItem
-        label="Flytta upp"
-        disabled={index === 0}
-        icon={<Icon><path d="M12 19V5M6 11l6-6 6 6" /></Icon>}
-        onSelect={() => run(() => move(puck, zone, index, index - 1))}
-      />
-      <MenuItem
-        label="Flytta ner"
-        disabled={index >= count - 1}
-        icon={<Icon><path d="M12 5v14M6 13l6 6 6-6" /></Icon>}
-        onSelect={() => run(() => move(puck, zone, index, index + 1))}
       />
       <MenuDivider />
       <MenuItem
@@ -353,21 +384,26 @@ function PageMenu({ close }: { close: () => void }) {
   );
 }
 
+/** Names of field groups (metadata.group in lib/page/config.tsx). */
+const GROUP_LABELS: Record<string, string> = { background: "Bakgrund", heroBackground: "Bakgrund & höjd" };
+
 // Slot names of Kolumner, in column order.
 const COLUMN_SLOTS = ["left", "right", "third", "fourth"];
 
 /**
  * Settings of the container a block is in, so its background can be
  * changed from the block: the Sektion, or the column and the whole
- * Kolumner. Any block can also be put into a new Sektion.
+ * Kolumner. One row with a submenu, or nothing on the page itself.
  */
-function ContainerItems({ id, zone, close }: { id: string; zone: string; close: () => void }) {
+function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
   const getPuck = useGetPuck();
   usePuck((s) => s.appState.data);
   const puck = getPuck();
   const [parentId, slot] = zone.split(":");
   const parent = parentId === "root" ? undefined : puck.getItemById(parentId);
-  const parentProps = (parent?.props ?? {}) as Record<string, unknown>;
+  if (parent?.type !== "Section" && parent?.type !== "Columns") return null;
+
+  const parentProps = parent.props as Record<string, unknown>;
   const color = (value: unknown) => (typeof value === "string" ? value : "");
   const setParent = (patch: Record<string, unknown>) => updateBlockProps(getPuck(), parentId, patch);
   const selectParent = () => {
@@ -377,56 +413,50 @@ function ContainerItems({ id, zone, close }: { id: string; zone: string; close: 
   };
   const paletteIcon = <Icon><rect x="4" y="5" width="16" height="14" rx="3" /><path d="M4 10h16" /></Icon>;
   const selectIcon = <Icon><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4" /></Icon>;
+  const column = COLUMN_SLOTS.indexOf(slot);
+  const columnColors = parentProps.columnColors as string[] | undefined;
+
+  const items =
+    parent.type === "Section" ? (
+      <>
+        <MenuItem
+          label="Sektionens bakgrundsfärg"
+          icon={paletteIcon}
+          hint={<Swatch color={color(parentProps.bgColor)} />}
+          submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
+        />
+        <MenuItem label="Markera sektionen" icon={selectIcon} onSelect={selectParent} />
+      </>
+    ) : (
+      <>
+        <MenuItem
+          label="Kolumnens bakgrundsfärg"
+          icon={paletteIcon}
+          hint={<Swatch color={color(columnColors?.[column])} />}
+          submenu={
+            <ColorPicker
+              value={color(columnColors?.[column])}
+              optional
+              onChange={(value) => setParent({ columnColors: setColumnColor(columnColors, column, value) })}
+            />
+          }
+        />
+        <MenuItem
+          label="Kolumners bakgrundsfärg"
+          icon={paletteIcon}
+          hint={<Swatch color={color(parentProps.bgColor)} />}
+          submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
+        />
+        <MenuItem label="Markera Kolumner" icon={selectIcon} onSelect={selectParent} />
+      </>
+    );
 
   return (
-    <>
-      {parent?.type === "Section" && (
-        <>
-          <MenuItem
-            label="Sektionens bakgrundsfärg"
-            icon={paletteIcon}
-            hint={<Swatch color={color(parentProps.bgColor)} />}
-            submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
-          />
-          <MenuItem label="Markera sektionen" icon={selectIcon} onSelect={selectParent} />
-        </>
-      )}
-      {parent?.type === "Columns" && (
-        <>
-          <MenuItem
-            label="Kolumnens bakgrundsfärg"
-            icon={paletteIcon}
-            hint={<Swatch color={color((parentProps.columnColors as string[] | undefined)?.[COLUMN_SLOTS.indexOf(slot)])} />}
-            submenu={
-              <ColorPicker
-                value={color((parentProps.columnColors as string[] | undefined)?.[COLUMN_SLOTS.indexOf(slot)])}
-                optional
-                onChange={(value) =>
-                  setParent({
-                    columnColors: setColumnColor(parentProps.columnColors as string[] | undefined, COLUMN_SLOTS.indexOf(slot), value),
-                  })
-                }
-              />
-            }
-          />
-          <MenuItem
-            label="Kolumners bakgrundsfärg"
-            icon={paletteIcon}
-            hint={<Swatch color={color(parentProps.bgColor)} />}
-            submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
-          />
-          <MenuItem label="Markera Kolumner" icon={selectIcon} onSelect={selectParent} />
-        </>
-      )}
-      <MenuItem
-        label="Lägg i sektion"
-        icon={<Icon><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M7 9h10M7 13h6" /></Icon>}
-        onSelect={() => {
-          wrapInSection(getPuck, id);
-          close();
-        }}
-      />
-    </>
+    <MenuItem
+      label={parent.type === "Section" ? "Sektion" : "Kolumner"}
+      icon={<Icon><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M7 9h10M7 13h6" /></Icon>}
+      submenu={items}
+    />
   );
 }
 
@@ -645,6 +675,7 @@ function FieldItem({
             id={name}
             label={label}
             icon={<Icon><path d="M4 5v14M12 5v14M20 5v14" /></Icon>}
+            scrollable
             submenu={Array.from({ length: columns }, (_, index) => (
               <div key={index} className="mb-1">
                 <MenuHeader>{`Kolumn ${index + 1}`}</MenuHeader>
@@ -681,6 +712,7 @@ function FieldItem({
             label={label}
             icon={<Icon><path d="M4 20 10 4h1l6 16M6.5 14h8" /></Icon>}
             hint={<span style={{ fontFamily: fontFamily(text) }}>{fontLabel(text)}</span>}
+            scrollable
             submenu={
               <FontPicker
                 value={text}

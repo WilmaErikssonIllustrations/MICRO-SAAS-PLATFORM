@@ -19,8 +19,21 @@ import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "@/components/page-blocks/u
 export const MENU_WIDTH = 248;
 const EDGE = 8;
 
-type MenuContextValue = { openId: string | null; setOpenId: (id: string | null) => void; flip: boolean };
-const MenuContext = createContext<MenuContextValue>({ openId: null, setOpenId: () => {}, flip: false });
+/**
+ * One menu level: which row's submenu is open, and where submenus of this
+ * level go. Each submenu is a level of its own, so submenus can nest.
+ */
+type MenuContextValue = {
+  openId: string | null;
+  setOpenId: (id: string | null) => void;
+  /** The left edge of the top menu, and how deep this level is. */
+  left: number;
+  depth: number;
+};
+const MenuContext = createContext<MenuContextValue>({ openId: null, setOpenId: () => {}, left: 0, depth: 0 });
+
+/** Open this level's submenus to the left when there is no room on the right. */
+const opensLeft = (left: number, depth: number) => left + MENU_WIDTH * (depth + 2) + EDGE > window.innerWidth;
 
 /** Moves `el` up so it stays inside the window. */
 function keepInWindow(el: HTMLElement | null) {
@@ -43,13 +56,11 @@ export function Menu({
   const [openId, setOpenId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const left = Math.max(EDGE, Math.min(x, window.innerWidth - MENU_WIDTH - EDGE));
-  // Open submenus to the left when there is no room on the right.
-  const flip = left + MENU_WIDTH * 2 + EDGE > window.innerWidth;
 
   useLayoutEffect(() => keepInWindow(panelRef.current), []);
 
   return (
-    <MenuContext.Provider value={{ openId, setOpenId, flip }}>
+    <MenuContext.Provider value={{ openId, setOpenId, left, depth: 0 }}>
       {/*
         The menu is a React portal from inside Puck's preview, so React would
         pass its clicks on to the preview, which deselects the block.
@@ -97,10 +108,12 @@ type MenuItemProps = {
   onSelect?: () => void;
   /** Content of a submenu that opens beside this row. */
   submenu?: ReactNode;
+  /** For long submenus (e.g. fonts): scroll instead of growing. */
+  scrollable?: boolean;
 };
 
-export function MenuItem({ id, label, icon, hint, disabled, danger, onSelect, submenu }: MenuItemProps) {
-  const { openId, setOpenId, flip } = useContext(MenuContext);
+export function MenuItem({ id, label, icon, hint, disabled, danger, onSelect, submenu, scrollable }: MenuItemProps) {
+  const { openId, setOpenId, left, depth } = useContext(MenuContext);
   const key = id ?? label;
   const open = submenu !== undefined && openId === key;
 
@@ -128,25 +141,43 @@ export function MenuItem({ id, label, icon, hint, disabled, danger, onSelect, su
           </Icon>
         )}
       </button>
-      {open && <Submenu flip={flip}>{submenu}</Submenu>}
+      {open && (
+        <Submenu left={left} depth={depth} scrollable={scrollable}>
+          {submenu}
+        </Submenu>
+      )}
     </div>
   );
 }
 
-function Submenu({ flip, children }: { flip: boolean; children: ReactNode }) {
+function Submenu({
+  left,
+  depth,
+  scrollable,
+  children,
+}: {
+  left: number;
+  depth: number;
+  scrollable?: boolean;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   useLayoutEffect(() => keepInWindow(ref.current), []);
+  // Scrolling would clip nested submenus, so only long lists scroll.
   return (
-    <div
-      ref={ref}
-      role="menu"
-      style={{ width: MENU_WIDTH }}
-      className={`absolute -top-1.5 max-h-[70vh] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ${
-        flip ? "right-full mr-1.5" : "left-full ml-1.5"
-      }`}
-    >
-      {children}
-    </div>
+    <MenuContext.Provider value={{ openId, setOpenId, left, depth: depth + 1 }}>
+      <div
+        ref={ref}
+        role="menu"
+        style={{ width: MENU_WIDTH }}
+        className={`absolute -top-1.5 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ${
+          scrollable ? "max-h-[70vh] overflow-y-auto" : ""
+        } ${opensLeft(left, depth) ? "right-full mr-1.5" : "left-full ml-1.5"}`}
+      >
+        {children}
+      </div>
+    </MenuContext.Provider>
   );
 }
 

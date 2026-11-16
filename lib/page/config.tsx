@@ -132,17 +132,25 @@ function imageEditField(imageProp: string, editProp: string, background = false,
   } satisfies CustomField<ImageEdit>;
 }
 
+/**
+ * Puts a field in a group: the right-click menu shows a group as one row
+ * with a submenu, to keep the menu short.
+ */
+function inGroup<F extends { metadata?: Record<string, unknown> }>(field: F, group: string): F {
+  return { ...field, metadata: { ...field.metadata, group } };
+}
+
 /** Background color and image behind a block (see BlockBackground). */
 const backgroundFields = {
-  bgColor: colorField("Bakgrundsfärg"),
-  bgImage: imageField("Bakgrundsbild"),
-  bgImageEdit: imageEditField("bgImage", "bgImageEdit", true, "Redigera bakgrundsbild"),
-  bgBox: {
+  bgColor: inGroup(colorField("Bakgrundsfärg"), "background"),
+  bgImage: inGroup(imageField("Bakgrundsbild"), "background"),
+  bgImageEdit: inGroup(imageEditField("bgImage", "bgImageEdit", true, "Redigera bakgrundsbild"), "background"),
+  bgBox: inGroup({
     type: "custom",
     label: "Ruta",
     metadata: { kind: "box" },
     render: ({ value, onChange }) => <BoxField label="Ruta" value={value} onChange={onChange} />,
-  } satisfies CustomField<Box>,
+  } satisfies CustomField<Box>, "background"),
 };
 const backgroundDefaults = { bgColor: "", bgImage: "", bgImageEdit: DEFAULT_IMAGE_EDIT, bgBox: DEFAULT_BOX };
 
@@ -236,9 +244,10 @@ export const pageConfig: PageConfig = {
       label: "Hero",
       fields: {
         layerName: layerNameField,
-        image: imageField("Bakgrundsbild (valfri)"),
-        imageEdit: imageEditField("image", "imageEdit", true),
+        image: inGroup(imageField("Bakgrundsbild (valfri)"), "heroBackground"),
+        imageEdit: inGroup(imageEditField("image", "imageEdit", true), "heroBackground"),
         imageFit: {
+          metadata: { group: "heroBackground" },
           type: "radio",
           label: "Bildvisning",
           options: [
@@ -247,6 +256,7 @@ export const pageConfig: PageConfig = {
           ],
         },
         mobileFit: {
+          metadata: { group: "heroBackground" },
           type: "radio",
           label: "På mobil",
           options: [
@@ -256,6 +266,7 @@ export const pageConfig: PageConfig = {
           ],
         },
         heroHeightUnit: {
+          metadata: { group: "heroBackground" },
           type: "radio",
           label: "Höjdenhet",
           options: [
@@ -270,9 +281,10 @@ export const pageConfig: PageConfig = {
           max: 2000,
           step: 10,
           // The menu shows the unit chosen in heroHeightUnit.
-          metadata: { unitProp: "heroHeightUnit" },
+          metadata: { unitProp: "heroHeightUnit", group: "heroBackground" },
         },
         overlay: {
+          metadata: { group: "heroBackground" },
           type: "radio",
           label: "Ton över bilden",
           options: [
@@ -299,6 +311,7 @@ export const pageConfig: PageConfig = {
           metadata: { kind: "color", part: "cta", menuLabel: "Textfärg" },
         },
         background: {
+          metadata: { group: "heroBackground" },
           type: "radio",
           label: "Bakgrund",
           options: [
@@ -306,7 +319,7 @@ export const pageConfig: PageConfig = {
             { label: "Mörk", value: "dark" },
           ],
         },
-        backgroundColor: colorField("Egen bakgrundsfärg"),
+        backgroundColor: inGroup(colorField("Egen bakgrundsfärg"), "heroBackground"),
         align: alignField,
         font: fontField("Typsnitt"),
         typography: typographyField(60),
