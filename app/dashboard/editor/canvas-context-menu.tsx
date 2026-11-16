@@ -448,11 +448,11 @@ function FieldItem({
       if (kind === "imageEdit") {
         const imageProp = field.metadata?.imageProp as string;
         const hasImage = Boolean(block?.props[imageProp]);
-        if (!block || !imageEditor) return null;
+        // Only offered once there is an image to edit.
+        if (!block || !imageEditor || !hasImage) return null;
         return (
           <MenuItem
-            label={hasImage ? "Redigera bild..." : "Redigera bild (ingen bild)"}
-            disabled={!hasImage}
+            label={`${label}...`}
             icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
             onSelect={() => {
               imageEditor.open({

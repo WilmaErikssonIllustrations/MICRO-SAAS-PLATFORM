@@ -117,6 +117,46 @@ export type HeroProps = {
   typography: Typography;
 };
 
+export type BackgroundProps = {
+  /** Empty means no background (the page shows through). */
+  bgColor: string;
+  bgImage: string;
+  bgImageEdit: ImageEdit;
+};
+
+/**
+ * A background color and/or image behind any block, covering the block's
+ * whole area. On a dark color the text turns light: Heading inherits
+ * `color`, TextBlock reads --block-text/--block-heading.
+ */
+export function BlockBackground({
+  bgColor,
+  bgImage,
+  bgImageEdit,
+  children,
+}: Partial<BackgroundProps> & { children: ReactNode }) {
+  if (!bgColor && !bgImage) return children;
+  const light = bgColor && getContrastText(bgColor) === "#ffffff";
+  const style = {
+    backgroundColor: bgColor || undefined,
+    ...(light && { color: "#ffffff", "--block-text": "rgb(255 255 255 / 0.85)", "--block-heading": "#ffffff" }),
+  } as CSSProperties;
+  return (
+    <div style={style} className="relative isolate overflow-hidden">
+      {bgImage && (
+        // eslint-disable-next-line @next/next/no-img-element -- user uploads on S3
+        <img
+          src={bgImage}
+          alt=""
+          style={imageEditStyle(bgImageEdit)}
+          className="absolute inset-0 -z-10 h-full w-full object-cover"
+        />
+      )}
+      {children}
+    </div>
+  );
+}
+
 /** Editor-only controls (e.g. "Byt bild") shown on top of an image. */
 type ImageControls = { imageControls?: ReactNode };
 
@@ -242,7 +282,7 @@ export function TextBlock({
       data-resize-box
       {...fontAttrs}
       style={{ color: color || undefined, ...fontStyle, ...typographyVars(typography) }}
-      className="mx-auto max-w-3xl px-6 py-6 text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.625) tracking-(--ls,normal) text-zinc-700 [&_:is(h2,h3)]:leading-(--lh,1.3) [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-[length:calc(1.5rem*var(--fs,1))] [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mt-6 [&_h3]:text-[length:calc(1.25rem*var(--fs,1))] [&_h3]:font-semibold [&_h3]:text-zinc-900 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic"
+      className="mx-auto max-w-3xl px-6 py-6 text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.625) tracking-(--ls,normal) text-[color:var(--block-text,var(--color-zinc-700))] [&_:is(h2,h3)]:leading-(--lh,1.3) [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-[length:calc(1.5rem*var(--fs,1))] [&_h2]:font-bold [&_h2]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_h3]:mt-6 [&_h3]:text-[length:calc(1.25rem*var(--fs,1))] [&_h3]:font-semibold [&_h3]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic"
     >
       <FontImport font={font} />
       {content}

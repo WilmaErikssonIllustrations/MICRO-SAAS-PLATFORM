@@ -39,7 +39,7 @@ export function ImageEditField({ label, imageProp, editProp, background }: Image
           opacity: hasImage ? 1 : 0.5,
         }}
       >
-        {hasImage ? "Redigera bild..." : "Ladda upp en bild först"}
+        {hasImage ? `${label}...` : "Ladda upp en bild först"}
       </button>
     </FieldLabel>
   );

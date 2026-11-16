@@ -1,5 +1,8 @@
 import type { Config, CustomField, Data, RichText, Slot } from "@puckeditor/core";
+import type { ReactNode } from "react";
 import {
+  type BackgroundProps,
+  BlockBackground,
   Button,
   type ButtonProps,
   COLUMN_COUNTS,
@@ -34,14 +37,16 @@ import { TypographyField } from "@/components/page-blocks/typography-field";
 
 /** Every block can be given its own name in the Lager panel. */
 type Named<Props> = Props & { layerName: string };
+/** Blocks other than Hero (which has its own) can have a background. */
+type Block<Props> = Named<Props> & BackgroundProps;
 
 type Components = {
   Hero: Named<HeroProps>;
-  Heading: Named<HeadingProps>;
-  Text: Named<{ content: RichText; color: string; font: string; typography: Typography }>;
-  Image: Named<ImageProps>;
-  Button: Named<ButtonProps>;
-  Columns: Named<{
+  Heading: Block<HeadingProps>;
+  Text: Block<{ content: RichText; color: string; font: string; typography: Typography }>;
+  Image: Block<ImageProps>;
+  Button: Block<ButtonProps>;
+  Columns: Block<{
     count: number;
     /** Two-column layouts from before `widths`; hidden in the editor. */
     ratio: ColumnsRatio;
@@ -51,7 +56,7 @@ type Components = {
     third: Slot;
     fourth: Slot;
   }>;
-  Spacer: Named<{ size: SpacerSize; height: number }>;
+  Spacer: Block<{ size: SpacerSize; height: number }>;
 };
 
 export type RootProps = {
@@ -98,15 +103,32 @@ function colorField(label: string) {
 }
 
 /** Image adjustments (filters, crop, flip...) for the block's `imageProp`. */
-function imageEditField(imageProp: string, editProp: string, background = false) {
+function imageEditField(imageProp: string, editProp: string, background = false, label = "Redigera bild") {
   return {
     type: "custom",
-    label: "Redigera bild",
+    label,
     metadata: { kind: "imageEdit", imageProp, background },
     render: () => (
-      <ImageEditField label="Redigera bild" imageProp={imageProp} editProp={editProp} background={background} />
+      <ImageEditField label={label} imageProp={imageProp} editProp={editProp} background={background} />
     ),
   } satisfies CustomField<ImageEdit>;
+}
+
+/** Background color and image behind a block (see BlockBackground). */
+const backgroundFields = {
+  bgColor: colorField("Bakgrundsfärg"),
+  bgImage: imageField("Bakgrundsbild"),
+  bgImageEdit: imageEditField("bgImage", "bgImageEdit", true, "Redigera bakgrundsbild"),
+};
+const backgroundDefaults = { bgColor: "", bgImage: "", bgImageEdit: DEFAULT_IMAGE_EDIT };
+
+/** Wraps a block's rendering in its background. */
+function withBackground(props: Partial<BackgroundProps>, block: ReactNode) {
+  return (
+    <BlockBackground bgColor={props.bgColor} bgImage={props.bgImage} bgImageEdit={props.bgImageEdit}>
+      {block}
+    </BlockBackground>
+  );
 }
 
 /**
@@ -275,8 +297,10 @@ export const pageConfig: PageConfig = {
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
         typography: typographyField({ h2: 30, h3: 24 }, "level"),
+        ...backgroundFields,
       },
       defaultProps: {
+        ...backgroundDefaults,
         layerName: "",
         text: "Rubrik",
         level: "h2",
@@ -285,7 +309,7 @@ export const pageConfig: PageConfig = {
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
       },
-      render: (props) => <Heading {...props} />,
+      render: (props) => withBackground(props, <Heading {...props} />),
     },
     Text: {
       label: "Text",
@@ -295,11 +319,12 @@ export const pageConfig: PageConfig = {
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
         typography: typographyField(18),
+        ...backgroundFields,
       },
-      defaultProps: { layerName: "", content: "<p>Skriv din text här.</p>", color: "", font: "", typography: DEFAULT_TYPOGRAPHY },
-      render: ({ content, color, font, typography }) => (
-        <TextBlock content={content} color={color} font={font} typography={typography} />
-      ),
+      defaultProps: {
+        ...backgroundDefaults, layerName: "", content: "<p>Skriv din text här.</p>", color: "", font: "", typography: DEFAULT_TYPOGRAPHY },
+      render: ({ content, color, font, typography, ...props }) =>
+        withBackground(props, <TextBlock content={content} color={color} font={font} typography={typography} />),
     },
     Image: {
       label: "Bild",
@@ -318,18 +343,20 @@ export const pageConfig: PageConfig = {
           ],
         },
         widthPx: { type: "number", label: "Bredd i pixlar (0 = fyll bredden)", min: 0, max: 2000, step: 10 },
+        ...backgroundFields,
       },
-      defaultProps: { layerName: "", src: "", alt: "", width: "wide", widthPx: 0, edit: DEFAULT_IMAGE_EDIT },
-      render: ({ puck, ...props }) => (
-        <ImageBlock
-          {...props}
-          imageControls={
-            puck.isEditing && (
-              <CanvasImagePicker componentId={props.id} propName="src" hasImage={!!props.src} />
-            )
-          }
-        />
-      ),
+      defaultProps: {
+        ...backgroundDefaults, layerName: "", src: "", alt: "", width: "wide", widthPx: 0, edit: DEFAULT_IMAGE_EDIT },
+      render: ({ puck, ...props }) =>
+        withBackground(
+          props,
+          <ImageBlock
+            {...props}
+            imageControls={
+              puck.isEditing && <CanvasImagePicker componentId={props.id} propName="src" hasImage={!!props.src} />
+            }
+          />,
+        ),
     },
     Button: {
       label: "Knapp",
@@ -350,8 +377,10 @@ export const pageConfig: PageConfig = {
         textColor: colorField("Textfärg"),
         font: fontField("Typsnitt"),
         typography: typographyField(16),
+        ...backgroundFields,
       },
       defaultProps: {
+        ...backgroundDefaults,
         layerName: "",
         label: "Läs mer",
         href: "#",
@@ -362,7 +391,7 @@ export const pageConfig: PageConfig = {
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
       },
-      render: (props) => <Button {...props} />,
+      render: (props) => withBackground(props, <Button {...props} />),
     },
     Columns: {
       label: "Kolumner",
@@ -396,16 +425,20 @@ export const pageConfig: PageConfig = {
         right: { type: "slot", label: "Kolumn 2" },
         third: { type: "slot", label: "Kolumn 3" },
         fourth: { type: "slot", label: "Kolumn 4" },
+        ...backgroundFields,
       },
-      defaultProps: { layerName: "", count: 2, ratio: "1:1", widths: [], left: [], right: [], third: [], fourth: [] },
-      render: ({ count, ratio, widths, left: First, right: Second, third: Third, fourth: Fourth }) => (
-        <Columns
-          count={count}
-          ratio={ratio}
-          widths={widths}
-          columns={[<First key="1" />, <Second key="2" />, <Third key="3" />, <Fourth key="4" />]}
-        />
-      ),
+      defaultProps: {
+        ...backgroundDefaults, layerName: "", count: 2, ratio: "1:1", widths: [], left: [], right: [], third: [], fourth: [] },
+      render: ({ count, ratio, widths, left: First, right: Second, third: Third, fourth: Fourth, ...props }) =>
+        withBackground(
+          props,
+          <Columns
+            count={count}
+            ratio={ratio}
+            widths={widths}
+            columns={[<First key="1" />, <Second key="2" />, <Third key="3" />, <Fourth key="4" />]}
+          />,
+        ),
     },
     Spacer: {
       label: "Mellanrum",
@@ -421,9 +454,11 @@ export const pageConfig: PageConfig = {
           ],
         },
         height: { type: "number", label: "Höjd i pixlar (0 = enligt storlek)", min: 0, max: 800, step: 4 },
+        ...backgroundFields,
       },
-      defaultProps: { layerName: "", size: "md", height: 0 },
-      render: ({ size, height }) => <Spacer size={size} height={height} />,
+      defaultProps: {
+        ...backgroundDefaults, layerName: "", size: "md", height: 0 },
+      render: ({ size, height, ...props }) => withBackground(props, <Spacer size={size} height={height} />),
     },
   },
 };
@@ -444,12 +479,9 @@ export function starterPage(title = "Min hemsida"): PageData {
       {
         type: "Text",
         props: {
+          ...pageConfig.components.Text.defaultProps!,
           id: "text-1",
           content: "<p>Berätta om er verksamhet här. Klicka på blocket för att redigera.</p>",
-          layerName: "",
-          color: "",
-          font: "",
-          typography: DEFAULT_TYPOGRAPHY,
         },
       },
     ],
