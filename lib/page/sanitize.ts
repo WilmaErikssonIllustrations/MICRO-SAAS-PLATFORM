@@ -4,6 +4,7 @@ import sanitizeHtml from "sanitize-html";
 import { type PageData, pageConfig } from "@/lib/page/config";
 import { type CustomFont, isFontValue, isValidFontName } from "@/lib/page/fonts";
 import { sanitizeImageEdit } from "@/lib/page/image-edit";
+import { sanitizeTypography } from "@/lib/page/typography";
 import { isStoredFontUrl, isStoredImageUrl } from "@/lib/storage";
 
 // Page data arrives from the browser, so it is untrusted: rebuild it from
@@ -81,6 +82,7 @@ function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: 
       if (kind === "color") return typeof value === "string" && HEX_COLOR.test(value) ? value : fallback;
       if (kind === "image") return typeof value === "string" && isStoredImageUrl(value) ? value : "";
       if (kind === "imageEdit") return sanitizeImageEdit(value);
+      if (kind === "typography") return sanitizeTypography(value);
       if (kind === "font") return isFontValue(value) ? value : "";
       if (kind === "fontList") return sanitizeFontList(value);
       return fallback;

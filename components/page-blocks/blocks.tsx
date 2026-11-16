@@ -2,12 +2,17 @@ import type { CSSProperties, ReactNode } from "react";
 import { getContrastText } from "@/lib/color";
 import { type CustomFont, fontCss, fontFamily } from "@/lib/page/fonts";
 import { type ImageEdit, imageEditStyle, imageFrameStyle } from "@/lib/page/image-edit";
+import { type Typography, typographyVars } from "@/lib/page/typography";
 
 // Presentational building blocks for published pages. They hold no state,
 // so they render both in the Puck editor and in Server Components.
 // Text fields marked `contentEditable` in lib/page/config.tsx arrive as
 // inline-editable elements in the editor and as plain strings elsewhere,
 // so render them as children and don't treat them as strings.
+//
+// Text sizes read --fs (scale), --ls (letter spacing) and --lh (line
+// height) with each element's own default as fallback; blocks set them from
+// their `typography` setting (lib/page/typography.ts).
 
 type Align = "left" | "center";
 
@@ -106,6 +111,7 @@ export type HeroProps = {
   buttonTextColor: string;
   align: Align;
   font: string;
+  typography: Typography;
 };
 
 /** Editor-only controls (e.g. "Byt bild") shown on top of an image. */
@@ -125,6 +131,7 @@ export function Hero({
   buttonTextColor,
   align,
   font,
+  typography,
   imageControls,
 }: HeroProps & ImageControls) {
   const tint = heroOverlay[overlay] ?? "";
@@ -134,7 +141,7 @@ export function Hero({
   return (
     <section
       {...fontAttrs}
-      style={{ ...(image ? undefined : themeStyle(backgroundColor)), ...fontStyle }}
+      style={{ ...(image ? undefined : themeStyle(backgroundColor)), ...fontStyle, ...typographyVars(typography) }}
       className={`group relative isolate overflow-hidden ${
         image
           ? // Without a dark tint, a soft shadow keeps the white text readable.
@@ -159,11 +166,13 @@ export function Hero({
       <div
         className={`mx-auto flex min-h-[60vh] max-w-5xl flex-col justify-center px-6 py-24 ${alignClass[align]}`}
       >
-        <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-balance sm:text-6xl">
+        <h1 className="max-w-3xl text-[length:calc(2.25rem*var(--fs,1))] leading-(--lh,1.11) font-bold tracking-(--ls,-0.025em) text-balance sm:text-[length:calc(3.75rem*var(--fs,1))] sm:leading-(--lh,1)">
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-6 max-w-2xl text-lg text-pretty opacity-90 sm:text-xl">{subtitle}</p>
+          <p className="mt-6 max-w-2xl text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.56) tracking-(--ls,normal) text-pretty opacity-90 sm:text-[length:calc(1.25rem*var(--fs,1))] sm:leading-(--lh,1.4)">
+            {subtitle}
+          </p>
         )}
         {ctaText && (
           <ButtonLink
@@ -188,18 +197,22 @@ export type HeadingProps = {
   align: Align;
   color: string;
   font: string;
+  typography: Typography;
 };
 
-export function Heading({ text, level: Tag, align, color, font }: HeadingProps) {
+export function Heading({ text, level: Tag, align, color, font, typography }: HeadingProps) {
   return (
-    <div className={`mx-auto flex max-w-3xl flex-col px-6 pt-12 ${alignClass[align]}`}>
+    <div
+      style={typographyVars(typography)}
+      className={`mx-auto flex max-w-3xl flex-col px-6 pt-12 ${alignClass[align]}`}
+    >
       <FontImport font={font} />
       <Tag
         style={{ color: color || undefined, fontFamily: fontFamily(font) }}
         className={
           Tag === "h2"
-            ? "text-3xl font-bold tracking-tight"
-            : "text-2xl font-semibold tracking-tight"
+            ? "text-[length:calc(1.875rem*var(--fs,1))] leading-(--lh,1.2) font-bold tracking-(--ls,-0.025em)"
+            : "text-[length:calc(1.5rem*var(--fs,1))] leading-(--lh,1.33) font-semibold tracking-(--ls,-0.025em)"
         }
       >
         {text}
@@ -208,13 +221,23 @@ export function Heading({ text, level: Tag, align, color, font }: HeadingProps) 
   );
 }
 
-export function TextBlock({ content, color, font }: { content: ReactNode; color?: string; font?: string }) {
+export function TextBlock({
+  content,
+  color,
+  font,
+  typography,
+}: {
+  content: ReactNode;
+  color?: string;
+  font?: string;
+  typography?: Typography;
+}) {
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <div
       {...fontAttrs}
-      style={{ color: color || undefined, ...fontStyle }}
-      className="mx-auto max-w-3xl px-6 py-6 text-lg leading-relaxed text-zinc-700 [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-zinc-900 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic"
+      style={{ color: color || undefined, ...fontStyle, ...typographyVars(typography) }}
+      className="mx-auto max-w-3xl px-6 py-6 text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.625) tracking-(--ls,normal) text-zinc-700 [&_:is(h2,h3)]:leading-(--lh,1.3) [&_a]:text-[var(--theme)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-[length:calc(1.5rem*var(--fs,1))] [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mt-6 [&_h3]:text-[length:calc(1.25rem*var(--fs,1))] [&_h3]:font-semibold [&_h3]:text-zinc-900 [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--theme)] [&_blockquote]:pl-4 [&_blockquote]:italic"
     >
       <FontImport font={font} />
       {content}
@@ -231,15 +254,16 @@ export type ButtonProps = {
   /** Empty means black or white, whichever reads best on the button. */
   textColor: string;
   font: string;
+  typography: Typography;
 };
 
-export function Button({ label, href, variant, align, color, textColor, font }: ButtonProps) {
+export function Button({ label, href, variant, align, color, textColor, font, typography }: ButtonProps) {
   if (!label) return null;
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <div
       {...fontAttrs}
-      style={fontStyle}
+      style={{ ...fontStyle, ...typographyVars(typography) }}
       className={`mx-auto flex max-w-3xl flex-col px-6 pb-6 ${alignClass[align]}`}
     >
       <FontImport font={font} />
@@ -275,7 +299,7 @@ function ButtonLink({
       href={href}
       rel="noopener noreferrer"
       style={{ ...themeStyle(color), color: textColor || undefined }}
-      className={`mt-10 inline-flex items-center rounded-full px-8 py-3 text-base font-semibold shadow-sm transition-transform hover:scale-105 ${buttonVariant[variant]}`}
+      className={`mt-10 inline-flex items-center rounded-full px-8 py-3 text-[length:calc(1rem*var(--fs,1))] leading-(--lh,1.5) font-semibold tracking-(--ls,normal) shadow-sm transition-transform hover:scale-105 ${buttonVariant[variant]}`}
     >
       {children}
     </a>

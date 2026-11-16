@@ -22,6 +22,8 @@ import { ImageEditField } from "@/components/page-blocks/image-edit-field";
 import { ImageField } from "@/components/page-blocks/image-field";
 import type { CustomFont } from "@/lib/page/fonts";
 import { DEFAULT_IMAGE_EDIT, type ImageEdit } from "@/lib/page/image-edit";
+import { DEFAULT_TYPOGRAPHY, type Typography } from "@/lib/page/typography";
+import { TypographyField } from "@/components/page-blocks/typography-field";
 
 // The Puck config is shared by the editor (client) and the public page
 // (server). `metadata.kind` tells lib/page/sanitize.ts how to validate
@@ -31,7 +33,7 @@ import { DEFAULT_IMAGE_EDIT, type ImageEdit } from "@/lib/page/image-edit";
 type Components = {
   Hero: HeroProps;
   Heading: HeadingProps;
-  Text: { content: RichText; color: string; font: string };
+  Text: { content: RichText; color: string; font: string; typography: Typography };
   Image: ImageProps;
   Button: ButtonProps;
   Columns: { ratio: ColumnsRatio; left: Slot; right: Slot };
@@ -92,6 +94,14 @@ function imageEditField(imageProp: string, editProp: string, background = false)
     ),
   } satisfies CustomField<ImageEdit>;
 }
+
+/** Text size, letter spacing and line height. */
+const typographyField = {
+  type: "custom",
+  label: "Textstil",
+  metadata: { kind: "typography" },
+  render: ({ value, onChange }) => <TypographyField label="Textstil" value={value} onChange={onChange} />,
+} satisfies CustomField<Typography>;
 
 /** A font; empty means the page's font. */
 function fontField(label: string) {
@@ -178,6 +188,7 @@ export const pageConfig: PageConfig = {
         backgroundColor: colorField("Egen bakgrundsfärg"),
         align: alignField,
         font: fontField("Typsnitt"),
+        typography: typographyField,
       },
       defaultProps: {
         image: "",
@@ -193,6 +204,7 @@ export const pageConfig: PageConfig = {
         buttonTextColor: "",
         align: "center",
         font: "",
+        typography: DEFAULT_TYPOGRAPHY,
       },
       render: ({ puck, ...props }) => (
         <Hero
@@ -216,7 +228,7 @@ export const pageConfig: PageConfig = {
         text: { type: "text", label: "Text", contentEditable: true },
         level: {
           type: "select",
-          label: "Storlek",
+          label: "Rubriknivå",
           options: [
             { label: "Stor (H2)", value: "h2" },
             { label: "Mellan (H3)", value: "h3" },
@@ -225,8 +237,16 @@ export const pageConfig: PageConfig = {
         align: alignField,
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
+        typography: typographyField,
       },
-      defaultProps: { text: "Rubrik", level: "h2", align: "left", color: "", font: "" },
+      defaultProps: {
+        text: "Rubrik",
+        level: "h2",
+        align: "left",
+        color: "",
+        font: "",
+        typography: DEFAULT_TYPOGRAPHY,
+      },
       render: (props) => <Heading {...props} />,
     },
     Text: {
@@ -235,9 +255,12 @@ export const pageConfig: PageConfig = {
         content: { type: "richtext", label: "Text" },
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
+        typography: typographyField,
       },
-      defaultProps: { content: "<p>Skriv din text här.</p>", color: "", font: "" },
-      render: ({ content, color, font }) => <TextBlock content={content} color={color} font={font} />,
+      defaultProps: { content: "<p>Skriv din text här.</p>", color: "", font: "", typography: DEFAULT_TYPOGRAPHY },
+      render: ({ content, color, font, typography }) => (
+        <TextBlock content={content} color={color} font={font} typography={typography} />
+      ),
     },
     Image: {
       label: "Bild",
@@ -284,6 +307,7 @@ export const pageConfig: PageConfig = {
         color: colorField("Knappfärg"),
         textColor: colorField("Textfärg"),
         font: fontField("Typsnitt"),
+        typography: typographyField,
       },
       defaultProps: {
         label: "Läs mer",
@@ -293,6 +317,7 @@ export const pageConfig: PageConfig = {
         color: "",
         textColor: "",
         font: "",
+        typography: DEFAULT_TYPOGRAPHY,
       },
       render: (props) => <Button {...props} />,
     },
@@ -346,7 +371,7 @@ export function starterPage(title = "Min hemsida"): PageData {
       },
       {
         type: "Heading",
-        props: { id: "heading-1", text: "Om oss", level: "h2", align: "left", color: "", font: "" },
+        props: { ...pageConfig.components.Heading.defaultProps!, id: "heading-1", text: "Om oss" },
       },
       {
         type: "Text",
@@ -355,6 +380,7 @@ export function starterPage(title = "Min hemsida"): PageData {
           content: "<p>Berätta om er verksamhet här. Klicka på blocket för att redigera.</p>",
           color: "",
           font: "",
+          typography: DEFAULT_TYPOGRAPHY,
         },
       },
     ],

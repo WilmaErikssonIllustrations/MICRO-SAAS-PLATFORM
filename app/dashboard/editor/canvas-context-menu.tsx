@@ -4,6 +4,7 @@ import { type ComponentData, createUsePuck, type Field, useGetPuck } from "@puck
 import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useImageEditor } from "@/components/page-blocks/image-editor-context";
+import { TypographyControls, typographySummary } from "@/components/page-blocks/typography-field";
 import {
   type PuckApi,
   ROOT_ZONE,
@@ -12,6 +13,7 @@ import {
 } from "@/components/page-blocks/update-block";
 import { ACCEPTED_FONT_TYPES, useFontUpload } from "@/components/page-blocks/use-upload";
 import type { PageConfig } from "@/lib/page/config";
+import type { Typography } from "@/lib/page/typography";
 import {
   type CustomFont,
   customFontValue,
@@ -415,6 +417,17 @@ function FieldItem({
               });
               close();
             }}
+          />
+        );
+      }
+      if (kind === "typography") {
+        const typography = value as Partial<Typography> | undefined;
+        return (
+          <MenuItem
+            label={label}
+            icon={<Icon><path d="M4 7V5h10v2M9 5v14M7 19h4M14 13v-1h6v1M17 12v7M15.5 19h3" /></Icon>}
+            hint={typographySummary(typography)}
+            submenu={<TypographyControls value={typography} onChange={onChange} />}
           />
         );
       }
