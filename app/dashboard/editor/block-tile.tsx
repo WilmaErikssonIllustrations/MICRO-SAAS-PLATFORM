@@ -2,8 +2,7 @@
 
 import { useGetPuck } from "@puckeditor/core";
 import type { ReactNode } from "react";
-
-const ROOT_ZONE = "root:default-zone";
+import { ROOT_ZONE } from "@/components/page-blocks/update-block";
 
 const blocks: Record<string, { label: string; hint: string; icon: ReactNode }> = {
   Hero: {

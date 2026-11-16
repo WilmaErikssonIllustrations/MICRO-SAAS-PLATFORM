@@ -2,6 +2,7 @@
 
 import { registerOverlayPortal, useGetPuck } from "@puckeditor/core";
 import { type ChangeEvent, useEffect, useRef } from "react";
+import { updateBlockProps } from "./update-block";
 import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "./use-image-upload";
 
 type CanvasImagePickerProps = {
@@ -37,16 +38,7 @@ export function CanvasImagePicker({
   }
 
   function setImage(url: string) {
-    const { dispatch, getItemById, getSelectorForId } = getPuck();
-    const item = getItemById(componentId);
-    const selector = getSelectorForId(componentId);
-    if (!item || !selector) return;
-    dispatch({
-      type: "replace",
-      destinationIndex: selector.index,
-      destinationZone: selector.zone,
-      data: { ...item, props: { ...item.props, [propName]: url } },
-    });
+    updateBlockProps(getPuck(), componentId, { [propName]: url });
   }
 
   const buttonClass =
