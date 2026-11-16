@@ -237,6 +237,15 @@ export const pageConfig: PageConfig = {
         layerName: layerNameField,
         image: imageField("Bakgrundsbild (valfri)"),
         imageEdit: imageEditField("image", "imageEdit", true),
+        imageFit: {
+          type: "radio",
+          label: "Bildvisning",
+          options: [
+            { label: "Fyll ytan", value: "cover" },
+            { label: "Visa hela bilden", value: "whole" },
+          ],
+        },
+        heroHeight: { type: "number", label: "Höjd i pixlar (0 = automatisk)", min: 0, max: 2000, step: 10 },
         overlay: {
           type: "radio",
           label: "Ton över bilden",
@@ -277,6 +286,8 @@ export const pageConfig: PageConfig = {
         backgroundColor: "",
         imageEdit: DEFAULT_IMAGE_EDIT,
         overlay: "none",
+        imageFit: "cover",
+        heroHeight: 0,
         buttonColor: "",
         buttonTextColor: "",
         align: "center",

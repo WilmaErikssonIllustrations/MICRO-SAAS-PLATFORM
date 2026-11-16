@@ -21,7 +21,8 @@ const usePuck = createUsePuck<PageConfig>();
 //   box     - Sektion: only its background box (below)
 // Blocks mark the element to put handles on with `data-resize-box`.
 // Blocks with a background box (BlockBackground, `data-box`) also get
-// filled handles for the box's width and height.
+// filled handles for the box's width and height, and an element marked
+// `data-resize-height="<prop>"` (Hero) gets one for its height in pixels.
 
 type Mode = "width" | "height" | "text" | "columns" | "box";
 
@@ -40,11 +41,12 @@ const MODES: Partial<Record<string, Mode>> = {
 type Rect = { left: number; top: number; width: number; height: number; room: number };
 
 /** The content's handle box, its background box (if any) and column dividers (x positions). */
-type Box = Rect & { id: string; frame: Rect | null; dividers: number[] };
+type Box = Rect & { id: string; frame: Rect | null; section: (Rect & { prop: string }) | null; dividers: number[] };
 
 type Handle =
   | { kind: "left" | "right" | "bottom" | "corner" | "boxHeight" }
   | { kind: "boxWidth"; side: "left" | "right" }
+  | { kind: "sectionHeight"; prop: string }
   | { kind: "divider"; index: number };
 
 const MIN_COLUMN_PERCENT = 10;
@@ -182,6 +184,15 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
               handleProps={handleProps}
             />
           )}
+          {box.section && (
+            <Grip
+              x={box.section.left + box.section.width / 2}
+              y={box.section.top + box.section.height}
+              shape="horizontal"
+              filled
+              {...handleProps({ kind: "sectionHeight", prop: box.section.prop }, "Dra för att ändra höjden")}
+            />
+          )}
           {readout && (
             <span
               className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold whitespace-nowrap text-white shadow"
@@ -281,6 +292,18 @@ function measure(doc: Document, id: string, mode: Mode): Box | null {
         room: contentWidth(boxElement.parentElement) ?? boxRect.width,
       }
     : null;
+  const heightElement = wrapper?.querySelector<HTMLElement>("[data-resize-height]");
+  const heightRect = heightElement?.getBoundingClientRect();
+  const section = heightElement && heightRect
+    ? {
+        left: heightRect.left + win.scrollX,
+        top: heightRect.top + win.scrollY,
+        width: heightRect.width,
+        height: heightRect.height,
+        room: heightRect.width,
+        prop: heightElement.dataset.resizeHeight ?? "",
+      }
+    : null;
   const dividers: number[] = [];
   if (mode === "columns") {
     const columns = Array.from(target.children).map((child) => child.getBoundingClientRect());
@@ -299,6 +322,7 @@ function measure(doc: Document, id: string, mode: Mode): Box | null {
     height: rect.height,
     room: contentWidth(target.parentElement) ?? rect.width,
     frame,
+    section,
     dividers,
   };
 }
@@ -321,6 +345,7 @@ function sameBox(a: Box | null, b: Box | null) {
     Math.abs(a.height - b.height) < 0.5 &&
     a.room === b.room &&
     JSON.stringify(a.frame) === JSON.stringify(b.frame) &&
+    JSON.stringify(a.section) === JSON.stringify(b.section) &&
     a.dividers.join() === b.dividers.join()
   );
 }
@@ -353,6 +378,11 @@ function dragResult(
       const width = Math.round(clamp(start.frame.width + factor * direction * dx, 60, room));
       const fills = width >= room - 2;
       return { patch: { bgBox: { ...box, width: fills ? 0 : width } }, readout: fills ? "Hela bredden" : `${width} px` };
+    }
+    case "sectionHeight": {
+      if (!start.section) return { patch: {}, readout: "" };
+      const height = Math.round(clamp(start.section.height + dy, 120, 2000));
+      return { patch: { [handle.prop]: height }, readout: `${height} px` };
     }
     case "boxHeight": {
       if (!start.frame) return { patch: {}, readout: "" };

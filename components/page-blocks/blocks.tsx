@@ -111,6 +111,10 @@ export type HeroProps = {
   imageEdit: ImageEdit;
   /** Missing on pages saved before it existed, which then get no tint. */
   overlay: keyof typeof heroOverlay;
+  /** Height in pixels; 0 is automatic (60% of the screen, or the image's proportions). */
+  heroHeight: number;
+  /** "whole" sizes the hero to the image so none of it is cropped. */
+  imageFit: "cover" | "whole";
   /** Button colors; empty means picked from the background. */
   buttonColor: string;
   buttonTextColor: string;
@@ -190,6 +194,8 @@ export function Hero({
   backgroundColor,
   imageEdit,
   overlay,
+  heroHeight,
+  imageFit,
   buttonColor,
   buttonTextColor,
   align,
@@ -198,14 +204,23 @@ export function Hero({
   imageControls,
 }: HeroProps & ImageControls) {
   const tint = heroOverlay[overlay] ?? "";
+  // The whole image: the image and the content share one grid cell, so the
+  // hero is as tall as the image (or the content, if that's taller).
+  const whole = Boolean(image) && imageFit === "whole" && !heroHeight;
   // A custom color works like the theme background, in that color.
   const shade = backgroundColor ? "theme" : background;
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <section
       {...fontAttrs}
-      style={{ ...(image ? undefined : themeStyle(backgroundColor)), ...fontStyle, ...typographyVars(typography) }}
-      className={`group relative isolate overflow-hidden ${
+      data-resize-height="heroHeight"
+      style={{
+        ...(image ? undefined : themeStyle(backgroundColor)),
+        ...fontStyle,
+        ...typographyVars(typography),
+        minHeight: heroHeight || undefined,
+      }}
+      className={`group relative isolate overflow-hidden ${whole ? "grid" : "flex flex-col"} ${
         image
           ? // Without a dark tint, a soft shadow keeps the white text readable.
             `bg-zinc-900 text-white ${overlay === "dark" ? "" : "[text-shadow:0_1px_12px_rgb(0_0_0/0.45)]"}`
@@ -220,14 +235,20 @@ export function Hero({
             src={image}
             alt=""
             style={imageEditStyle(imageEdit)}
-            className="absolute inset-0 -z-10 h-full w-full object-cover"
+            className={
+              whole
+                ? "col-start-1 row-start-1 -z-10 h-auto w-full self-stretch object-cover"
+                : "absolute inset-0 -z-10 h-full w-full object-cover"
+            }
           />
           {tint && <div className={`absolute inset-0 -z-10 ${tint}`} />}
         </>
       )}
       {imageControls && <HoverControls>{imageControls}</HoverControls>}
       <div
-        className={`mx-auto flex min-h-[60vh] max-w-5xl flex-col justify-center px-6 py-24 ${alignClass[align]}`}
+        className={`mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-6 py-24 ${
+          whole ? "col-start-1 row-start-1" : heroHeight ? "" : "min-h-[60vh]"
+        } ${alignClass[align]}`}
       >
         <h1 data-resize-box className="max-w-3xl text-[length:calc(2.25rem*var(--fs,1))] leading-(--lh,1.11) font-bold tracking-(--ls,-0.025em) text-balance sm:text-[length:calc(3.75rem*var(--fs,1))] sm:leading-(--lh,1)">
           {title}
