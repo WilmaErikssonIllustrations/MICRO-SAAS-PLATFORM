@@ -236,7 +236,7 @@ export function ColorPicker({
     <div className="grid gap-2 p-1">
       {optional && (
         <OptionRow
-          label="Standard (temafärgen)"
+          label="Standard"
           selected={!value}
           onSelect={() => pick("")}
           preview={<Swatch color="" />}

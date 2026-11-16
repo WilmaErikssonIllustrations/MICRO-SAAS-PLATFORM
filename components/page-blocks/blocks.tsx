@@ -101,6 +101,9 @@ export type HeroProps = {
   imageEdit: ImageEdit;
   /** Missing on pages saved before it existed, which then get no tint. */
   overlay: keyof typeof heroOverlay;
+  /** Button colors; empty means picked from the background. */
+  buttonColor: string;
+  buttonTextColor: string;
   align: Align;
   font: string;
 };
@@ -118,6 +121,8 @@ export function Hero({
   backgroundColor,
   imageEdit,
   overlay,
+  buttonColor,
+  buttonTextColor,
   align,
   font,
   imageControls,
@@ -163,7 +168,11 @@ export function Hero({
         {ctaText && (
           <ButtonLink
             href={ctaLink || "#"}
-            variant={shade === "theme" && !image ? "inverted" : "filled"}
+            // On a theme-colored hero the default button is inverted; a
+            // chosen button color is used as is.
+            variant={shade === "theme" && !image && !buttonColor ? "inverted" : "filled"}
+            color={buttonColor}
+            textColor={buttonTextColor}
           >
             {ctaText}
           </ButtonLink>
@@ -219,20 +228,22 @@ export type ButtonProps = {
   variant: "filled" | "outline";
   align: Align;
   color: string;
+  /** Empty means black or white, whichever reads best on the button. */
+  textColor: string;
   font: string;
 };
 
-export function Button({ label, href, variant, align, color, font }: ButtonProps) {
+export function Button({ label, href, variant, align, color, textColor, font }: ButtonProps) {
   if (!label) return null;
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <div
       {...fontAttrs}
-      style={{ ...themeStyle(color), ...fontStyle }}
+      style={fontStyle}
       className={`mx-auto flex max-w-3xl flex-col px-6 pb-6 ${alignClass[align]}`}
     >
       <FontImport font={font} />
-      <ButtonLink href={href || "#"} variant={variant}>
+      <ButtonLink href={href || "#"} variant={variant} color={color} textColor={textColor}>
         {label}
       </ButtonLink>
     </div>
@@ -248,16 +259,22 @@ const buttonVariant = {
 function ButtonLink({
   href,
   variant,
+  color,
+  textColor,
   children,
 }: {
   href: string;
   variant: keyof typeof buttonVariant;
+  /** Button color and text color; empty or missing means the defaults. */
+  color?: string;
+  textColor?: string;
   children: ReactNode;
 }) {
   return (
     <a
       href={href}
       rel="noopener noreferrer"
+      style={{ ...themeStyle(color), color: textColor || undefined }}
       className={`mt-10 inline-flex items-center rounded-full px-8 py-3 text-base font-semibold shadow-sm transition-transform hover:scale-105 ${buttonVariant[variant]}`}
     >
       {children}
