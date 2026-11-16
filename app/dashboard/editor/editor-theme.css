@@ -45,8 +45,14 @@ html body {
   inset: 0;
 }
 
-/* No zoom in/out buttons above the canvas; the titles come from dictionary.ts. */
+/*
+  No zoom controls above the canvas: the in/out buttons (titles from
+  dictionary.ts), the zoom level menu and the dividers that went with them.
+  Puck has no option for this; its class names end in a build hash.
+*/
 [title="Zooma in"],
-[title="Zooma ut"] {
+[title="Zooma ut"],
+[class*="_ViewportControls-zoom_"],
+[class*="_ViewportControls-divider_"] {
   display: none;
 }

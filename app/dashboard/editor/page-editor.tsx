@@ -1,6 +1,6 @@
 "use client";
 
-import { Puck } from "@puckeditor/core";
+import { Puck, type Viewports } from "@puckeditor/core";
 import "@puckeditor/core/puck.css";
 import "./editor-theme.css";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -13,6 +13,13 @@ import { NamedActionBar } from "./layers-panel";
 import { sideRailPlugins } from "./side-rail";
 import { svDictionary } from "./dictionary";
 import { EditorTopBar, type LastAction } from "./editor-top-bar";
+
+// Puck's sizes without its full-width one, with Swedish names.
+const viewports: Viewports = [
+  { width: 360, height: "auto", icon: "Smartphone", label: "Mobil" },
+  { width: 768, height: "auto", icon: "Tablet", label: "Surfplatta" },
+  { width: 1280, height: "auto", icon: "Monitor", label: "Dator" },
+];
 
 type PageEditorProps = {
   publishedData: PageData;
@@ -92,6 +99,7 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
       onChange={handleChange}
       dictionary={svDictionary}
       plugins={sideRailPlugins}
+      viewports={viewports}
       // Start with the canvas wide open; the plus adds blocks from a dropdown.
       ui={{
         leftSideBarVisible: false,
