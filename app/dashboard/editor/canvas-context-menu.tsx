@@ -1,7 +1,7 @@
 "use client";
 
 import { type ComponentData, createUsePuck, type Field, useGetPuck } from "@puckeditor/core";
-import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useImageEditor } from "@/components/page-blocks/image-editor-context";
 import { BoxControls, boxSummary } from "@/components/page-blocks/box-field";
@@ -343,6 +343,7 @@ function hasPartFields(puck: PuckApi, item: ComponentData, part: string | null) 
  */
 export function BlockFieldItems({ id, part, close }: { id: string; part: string | null; close: () => void }) {
   const getPuck = useGetPuck();
+  const inToolbar = useInToolbar();
   // Re-render on every change so the items show current values.
   usePuck((s) => s.appState.data);
   const puck = getPuck();
@@ -389,6 +390,23 @@ export function BlockFieldItems({ id, part, close }: { id: string; part: string 
     if (group) groups.set(group, [...(groups.get(group) ?? []), entry]);
   }
   const { zone } = selector;
+
+  // In the toolbar, a group's settings are buttons of their own (no
+  // dropdown that opens more dropdowns); in menus, one row per group.
+  if (inToolbar) {
+    return (
+      <>
+        {topFields.map(fieldItem)}
+        {[...groups].map(([group, entries]) => (
+          <Fragment key={group}>
+            <MenuDivider />
+            {entries.map(fieldItem)}
+          </Fragment>
+        ))}
+        <ContainerItems zone={zone} close={close} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -473,6 +491,7 @@ const COLUMN_SLOTS = ["left", "right", "third", "fourth"];
  */
 function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
   const getPuck = useGetPuck();
+  const inToolbar = useInToolbar();
   usePuck((s) => s.appState.data);
   const puck = getPuck();
   const [parentId, slot] = zone.split(":");
@@ -499,6 +518,7 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
           label="Sektionens bakgrundsfärg"
           icon={paletteIcon}
           hint={<Swatch color={color(parentProps.bgColor)} />}
+          face={<FillColorFace color={color(parentProps.bgColor)} />}
           submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
         />
         <MenuItem label="Markera sektionen" icon={selectIcon} onSelect={selectParent} />
@@ -509,6 +529,7 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
           label="Kolumnens bakgrundsfärg"
           icon={paletteIcon}
           hint={<Swatch color={color(columnColors?.[column])} />}
+          face={<FillColorFace color={color(columnColors?.[column])} />}
           submenu={
             <ColorPicker
               value={color(columnColors?.[column])}
@@ -521,11 +542,22 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
           label="Kolumners bakgrundsfärg"
           icon={paletteIcon}
           hint={<Swatch color={color(parentProps.bgColor)} />}
+          face={<FillColorFace color={color(parentProps.bgColor)} />}
           submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
         />
         <MenuItem label="Markera Kolumner" icon={selectIcon} onSelect={selectParent} />
       </>
     );
+
+  // In the toolbar, as buttons of their own after a divider.
+  if (inToolbar) {
+    return (
+      <>
+        <MenuDivider />
+        {items}
+      </>
+    );
+  }
 
   return (
     <MenuItem
