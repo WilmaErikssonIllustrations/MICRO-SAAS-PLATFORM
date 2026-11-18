@@ -724,6 +724,20 @@ export const pageConfig: PageConfig = {
   },
 };
 
+/**
+ * Every block is rendered in an anchor with the block's id, so a link to
+ * "#<id>" (e.g. a button's "Del av sidan") scrolls to it. See
+ * [data-anchor] in SiteRoot for the smooth scrolling.
+ */
+for (const component of Object.values(pageConfig.components) as { render: (props: { id: string }) => ReactNode }[]) {
+  const render = component.render;
+  component.render = (props) => (
+    <div id={props.id} data-anchor>
+      {render(props)}
+    </div>
+  );
+}
+
 /** Starting point for new websites. */
 export function starterPage(title = "Min hemsida"): PageData {
   return {

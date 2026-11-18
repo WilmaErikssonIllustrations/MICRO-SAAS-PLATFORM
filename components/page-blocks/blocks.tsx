@@ -90,8 +90,12 @@ export function SiteRoot({
     // In a Grupp (Section), no space above the first block or below the last one
     // (the space between blocks stays). `data-block` marks a block's outer
     // element; in the editor Puck wraps each block in one more element.
-    ".section-content>[data-block]:first-child,.section-content>:first-child>[data-block]{padding-top:0}",
-    ".section-content>[data-block]:last-child,.section-content>:last-child>[data-block]{padding-bottom:0}",
+    // ...also through the anchor every block is in (lib/page/config.tsx).
+    ".section-content>[data-block]:first-child,.section-content>:first-child>[data-block],.section-content>:first-child>:first-child>[data-block]{padding-top:0}",
+    ".section-content>[data-block]:last-child,.section-content>:last-child>[data-block],.section-content>:last-child>:last-child>[data-block]{padding-bottom:0}",
+    // Links to a block (#<id>) scroll there smoothly, with some room above.
+    "html:has(.site-root){scroll-behavior:smooth}",
+    ".site-root [data-anchor]{scroll-margin-top:1rem}",
   ].join("\n");
 
   return (

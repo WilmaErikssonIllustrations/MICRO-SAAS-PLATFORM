@@ -50,7 +50,7 @@ import {
   useInToolbar,
 } from "./context-menu-ui";
 import { PART_LABELS, partAt, setActivePart, useActivePart } from "./active-part";
-import { layerLabel, renameLayer } from "./layers-panel";
+import { allBlocks, layerLabel, renameLayer } from "./layers-panel";
 import { PartTracker } from "./part-fields";
 import { ResizeHandles } from "./resize-handles";
 
@@ -713,16 +713,27 @@ function FieldItem({
               <Icon><path d="M5 6h14M12 6v13" /></Icon>
             )
           }
-          hint={kind === "url" ? undefined : text || "–"}
+          hint={kind === "url" ? linkHint(getPuck(), text) : text || "–"}
+          scrollable={kind === "url"}
           submenu={
-            <TextInput
-              value={text}
-              placeholder={kind === "url" ? "https://... eller mailto:..." : undefined}
-              onSave={(next) => {
-                onChange(next);
-                close();
-              }}
-            />
+            kind === "url" ? (
+              <LinkPicker
+                value={text}
+                ownId={block?.id}
+                onSave={(next) => {
+                  onChange(next);
+                  close();
+                }}
+              />
+            ) : (
+              <TextInput
+                value={text}
+                onSave={(next) => {
+                  onChange(next);
+                  close();
+                }}
+              />
+            )
           }
         />
       );
@@ -1092,6 +1103,36 @@ function TextStyleButtons({
       <Icon className="size-4.5">{icon}</Icon>
     </button>
   ));
+}
+
+/** Where a link goes, short: "→ <block>" for a block on the page, else nothing. */
+function linkHint(puck: PuckApi, href: string) {
+  if (!href.startsWith("#") || href.length < 2) return undefined;
+  const item = puck.getItemById(href.slice(1));
+  return item ? `→ ${layerLabel(puck, item)}` : undefined;
+}
+
+/**
+ * A link: an address (https://, mailto:...), or a block on the same page
+ * ("#<block id>"; every block is rendered with its id, see config.tsx).
+ */
+function LinkPicker({ value, ownId, onSave }: { value: string; ownId?: string; onSave: (href: string) => void }) {
+  const getPuck = useGetPuck();
+  usePuck((s) => s.appState.data);
+  const blocks = allBlocks(getPuck()).filter((b) => b.id !== ownId);
+  const isBlock = value.startsWith("#") && value.length > 1;
+  return (
+    <>
+      <TextInput value={isBlock ? "" : value} placeholder="https://... eller mailto:..." onSave={onSave} />
+      <MenuDivider />
+      <MenuHeader>Del av sidan</MenuHeader>
+      {blocks.map((b) => (
+        <span key={b.id} className="block" style={{ paddingLeft: b.depth * 12 }}>
+          <OptionRow label={b.label} selected={value === `#${b.id}`} onSelect={() => onSave(`#${b.id}`)} />
+        </span>
+      ))}
+    </>
+  );
 }
 
 /** Fonts shown in their own typeface, plus uploading a new one. */

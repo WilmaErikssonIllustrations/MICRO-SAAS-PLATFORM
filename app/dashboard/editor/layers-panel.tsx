@@ -23,6 +23,19 @@ export function renameLayer(puck: PuckApi, id: string, name: string) {
   updateBlockProps(puck, id, { layerName: name.trim().slice(0, 60) });
 }
 
+/** Every block on the page in order, nested ones after their container, with their depth. */
+export function allBlocks(puck: PuckApi) {
+  const result: { id: string; label: string; depth: number }[] = [];
+  const walk = (items: ComponentData[], depth: number) => {
+    for (const item of items) {
+      result.push({ id: String(item.props.id), label: layerLabel(puck, item), depth });
+      for (const slot of slotsOf(puck, item)) walk(slot.items, depth + 1);
+    }
+  };
+  walk(puck.appState.data.content as ComponentData[], 0);
+  return result;
+}
+
 type DragSource = { id: string; zone: string; index: number };
 type DropTarget = { zone: string; index: number };
 
