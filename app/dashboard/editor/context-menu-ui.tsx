@@ -165,13 +165,16 @@ function Submenu({
   const [openId, setOpenId] = useState<string | null>(null);
   useLayoutEffect(() => keepInWindow(ref.current), []);
   // Scrolling would clip nested submenus, so only long lists scroll.
+  // z-10: without it, the rows after this one in the parent menu are drawn
+  // on top of the submenu when it opens over them (e.g. a third level that
+  // opens to the left, over the first menu).
   return (
     <MenuContext.Provider value={{ openId, setOpenId, left, depth: depth + 1 }}>
       <div
         ref={ref}
         role="menu"
         style={{ width: MENU_WIDTH }}
-        className={`absolute -top-1.5 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ${
+        className={`absolute -top-1.5 z-10 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ${
           scrollable ? "max-h-[70vh] overflow-y-auto" : ""
         } ${opensLeft(left, depth) ? "right-full mr-1.5" : "left-full ml-1.5"}`}
       >
