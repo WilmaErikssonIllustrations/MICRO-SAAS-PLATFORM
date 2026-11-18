@@ -323,6 +323,7 @@ function textOrder(name: string, field: Field) {
   if (kind === "typography") return 1;
   if (kind === "color" && isTextColor(name, field)) return 2;
   if (kind === "textStyle") return 3;
+  if (kind === "textEffect") return 3.5;
   return 4;
 }
 
@@ -967,6 +968,10 @@ function selectIcon(name: string, value: unknown): ReactNode {
     if (value === "center") return <Icon><path d="M4 6h16M7 12h10M5 18h14" /></Icon>;
     if (value === "right") return <Icon><path d="M4 6h16M10 12h10M6 18h14" /></Icon>;
     return <Icon><path d="M4 6h16M4 12h10M4 18h14" /></Icon>;
+  }
+  if (name === "effect" || name.endsWith("Effect")) {
+    // Sparkles, for Effekter.
+    return <Icon><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 3v4M17 5h4M5 17v4M3 19h4" /></Icon>;
   }
   switch (name) {
     case "imageFit":

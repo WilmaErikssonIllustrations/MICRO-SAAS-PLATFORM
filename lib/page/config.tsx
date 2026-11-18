@@ -32,6 +32,7 @@ import { ImageField } from "@/components/page-blocks/image-field";
 import { type Box, DEFAULT_BOX } from "@/lib/page/box";
 import type { CustomFont } from "@/lib/page/fonts";
 import { DEFAULT_IMAGE_EDIT, type ImageEdit } from "@/lib/page/image-edit";
+import { TEXT_EFFECTS, type TextEffect } from "@/lib/page/text-effect";
 import { DEFAULT_TEXT_STYLE, type TextStyle } from "@/lib/page/text-style";
 import { DEFAULT_TYPOGRAPHY, type Typography } from "@/lib/page/typography";
 import { TextStyleField } from "@/components/page-blocks/text-style-field";
@@ -50,7 +51,7 @@ type Block<Props> = Named<Props> & BackgroundProps;
 type Components = {
   Hero: Named<HeroProps>;
   Heading: Block<HeadingProps>;
-  Text: Block<{ content: RichText; color: string; font: string; typography: Typography; textStyle: TextStyle }>;
+  Text: Block<{ content: RichText; color: string; font: string; typography: Typography; textStyle: TextStyle; effect: TextEffect }>;
   Image: Block<ImageProps>;
   Button: Block<ButtonProps>;
   Columns: Block<{
@@ -203,6 +204,14 @@ function textStyleField(defaultBold: boolean) {
   } satisfies CustomField<TextStyle>;
 }
 
+/** A text effect (shadow, outline, neon...), the sparkle in the toolbar. */
+const textEffectField = {
+  type: "select",
+  label: "Effekter",
+  metadata: { kind: "textEffect" },
+  options: TEXT_EFFECTS.map((effect) => ({ ...effect })),
+} as const;
+
 /** Puts a field on one part of a block (metadata.part, see the Hero). */
 function onPart<F extends { metadata?: Record<string, unknown> }>(field: F, part: string, menuLabel?: string): F {
   return { ...field, metadata: { ...field.metadata, part, ...(menuLabel && { menuLabel }) } };
@@ -326,12 +335,14 @@ export const pageConfig: PageConfig = {
         titleFont: onPart(fontField("Rubrikens typsnitt"), "title", "Typsnitt"),
         titleTypography: onPart(typographyField(60), "title"),
         titleStyle: onPart(textStyleField(true), "title"),
+        titleEffect: onPart(textEffectField, "title"),
         titleAlign: partAlignField("Rubrikens justering", "title"),
         titleColor: { ...colorField("Rubrikens färg"), metadata: { kind: "color", part: "title", menuLabel: "Färg" } },
         subtitle: { type: "textarea", label: "Underrubrik", contentEditable: true, metadata: { part: "subtitle" } },
         subtitleFont: onPart(fontField("Underrubrikens typsnitt"), "subtitle", "Typsnitt"),
         subtitleTypography: onPart(typographyField(20), "subtitle"),
         subtitleStyle: onPart(textStyleField(false), "subtitle"),
+        subtitleEffect: onPart(textEffectField, "subtitle"),
         subtitleAlign: partAlignField("Underrubrikens justering", "subtitle"),
         subtitleColor: {
           ...colorField("Underrubrikens färg"),
@@ -341,6 +352,7 @@ export const pageConfig: PageConfig = {
         ctaFont: onPart(fontField("Knappens typsnitt"), "cta", "Typsnitt"),
         ctaTypography: onPart(typographyField(16), "cta"),
         ctaStyle: onPart(textStyleField(true), "cta"),
+        ctaEffect: onPart(textEffectField, "cta"),
         ctaAlign: partAlignField("Knappens justering", "cta"),
         ctaLink: { type: "text", label: "Knapplänk", metadata: { kind: "url", part: "cta", menuLabel: "Länk" } },
         buttonColor: { ...colorField("Knappfärg"), metadata: { kind: "color", part: "cta", menuLabel: "Färg" } },
@@ -398,6 +410,9 @@ export const pageConfig: PageConfig = {
         ctaFont: "",
         ctaTypography: DEFAULT_TYPOGRAPHY,
         ctaStyle: DEFAULT_TEXT_STYLE,
+        titleEffect: "",
+        subtitleEffect: "",
+        ctaEffect: "",
       },
       render: ({ puck, ...props }) => (
         <Hero
@@ -443,6 +458,7 @@ export const pageConfig: PageConfig = {
         font: fontField("Typsnitt"),
         typography: typographyField({ h2: 30, h3: 24 }, "level"),
         textStyle: textStyleField(true),
+        effect: textEffectField,
         ...backgroundFields,
       },
       defaultProps: {
@@ -456,6 +472,7 @@ export const pageConfig: PageConfig = {
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
         textStyle: DEFAULT_TEXT_STYLE,
+        effect: "",
       },
       render: (props) => withBackground(props, <Heading {...props} boxed={hasBackground(props)} />),
     },
@@ -468,6 +485,7 @@ export const pageConfig: PageConfig = {
         font: fontField("Typsnitt"),
         typography: typographyField(18),
         textStyle: textStyleField(false),
+        effect: textEffectField,
         ...backgroundFields,
       },
       defaultProps: {
@@ -478,11 +496,12 @@ export const pageConfig: PageConfig = {
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
         textStyle: DEFAULT_TEXT_STYLE,
+        effect: "",
       },
-      render: ({ content, color, font, typography, textStyle, ...props }) =>
+      render: ({ content, color, font, typography, textStyle, effect, ...props }) =>
         withBackground(
           props,
-          <TextBlock content={content} color={color} font={font} typography={typography} textStyle={textStyle} />,
+          <TextBlock content={content} color={color} font={font} typography={typography} textStyle={textStyle} effect={effect} />,
         ),
     },
     Image: {
@@ -537,6 +556,7 @@ export const pageConfig: PageConfig = {
         font: fontField("Typsnitt"),
         typography: typographyField(16),
         textStyle: textStyleField(true),
+        effect: textEffectField,
         ...backgroundFields,
       },
       defaultProps: {
@@ -551,6 +571,7 @@ export const pageConfig: PageConfig = {
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
         textStyle: DEFAULT_TEXT_STYLE,
+        effect: "",
       },
       render: (props) => withBackground(props, <Button {...props} />),
     },

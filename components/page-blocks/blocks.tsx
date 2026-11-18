@@ -3,6 +3,7 @@ import { getContrastText } from "@/lib/color";
 import { type Box, boxRowStyle, boxStyle, cssHeight, type HeightUnit, isDefaultBox } from "@/lib/page/box";
 import { type CustomFont, fontCss, fontFamily } from "@/lib/page/fonts";
 import { type ImageEdit, imageEditStyle, imageFrameStyle } from "@/lib/page/image-edit";
+import { type TextEffect, textEffectCss } from "@/lib/page/text-effect";
 import { type TextStyle, textStyleCss } from "@/lib/page/text-style";
 import { type Typography, typographyVars } from "@/lib/page/typography";
 
@@ -186,11 +187,24 @@ export type HeroProps = {
   ctaFont: string;
   ctaTypography: Typography;
   ctaStyle: TextStyle;
+  titleEffect: TextEffect;
+  subtitleEffect: TextEffect;
+  ctaEffect: TextEffect;
 };
 
-/** Inline styles for one text part of the hero: its font, size and B/I/U. */
-function partStyle(font: string | undefined, typography: Typography | undefined, style: TextStyle | undefined) {
-  return { fontFamily: fontFamily(font), ...typographyVars(typography), ...textStyleCss(style) } as CSSProperties;
+/** Inline styles for one text part of the hero: its font, size, B/I/U and effect. */
+function partStyle(
+  font: string | undefined,
+  typography: Typography | undefined,
+  style: TextStyle | undefined,
+  effect: TextEffect | undefined,
+) {
+  return {
+    fontFamily: fontFamily(font),
+    ...typographyVars(typography),
+    ...textStyleCss(style),
+    ...textEffectCss(effect),
+  } as CSSProperties;
 }
 
 /** A background color, with light text when the color is dark. */
@@ -287,6 +301,9 @@ export function Hero({
   ctaFont,
   ctaTypography,
   ctaStyle,
+  titleEffect,
+  subtitleEffect,
+  ctaEffect,
   imageControls,
 }: HeroProps & ImageControls) {
   const tint = heroOverlay[overlay] ?? "";
@@ -352,7 +369,7 @@ export function Hero({
         <h1
           data-resize-box
           data-part="title"
-          style={{ color: titleColor || undefined, ...partStyle(titleFont, titleTypography, titleStyle) }}
+          style={{ color: titleColor || undefined, ...partStyle(titleFont, titleTypography, titleStyle, titleEffect) }}
           className={`${selfAlignClass[titleAlign ?? ""]} max-w-3xl text-[length:calc(2.25rem*var(--fs,1))] leading-(--lh,1.11) font-bold tracking-(--ls,-0.025em) text-balance sm:text-[length:calc(3.75rem*var(--fs,1))] sm:leading-(--lh,1)`}
         >
           {title}
@@ -360,7 +377,7 @@ export function Hero({
         {subtitle && (
           <p
             data-part="subtitle"
-            style={{ color: subtitleColor || undefined, ...partStyle(subtitleFont, subtitleTypography, subtitleStyle) }}
+            style={{ color: subtitleColor || undefined, ...partStyle(subtitleFont, subtitleTypography, subtitleStyle, subtitleEffect) }}
             className={`${selfAlignClass[subtitleAlign ?? ""]} mt-6 max-w-2xl text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.56) tracking-(--ls,normal) text-pretty opacity-90 sm:text-[length:calc(1.25rem*var(--fs,1))] sm:leading-(--lh,1.4)`}
           >
             {subtitle}
@@ -375,7 +392,7 @@ export function Hero({
             color={buttonColor}
             textColor={buttonTextColor}
             part="cta"
-            style={partStyle(ctaFont, ctaTypography, ctaStyle)}
+            style={partStyle(ctaFont, ctaTypography, ctaStyle, ctaEffect)}
             className={selfAlignClass[ctaAlign ?? ""]}
           >
             {ctaText}
@@ -397,6 +414,7 @@ export type HeadingProps = {
   decoration: "none" | "underline";
   /** Missing on pages saved before it existed (handled). */
   textStyle: TextStyle;
+  effect: TextEffect;
 };
 
 export function Heading({
@@ -408,6 +426,7 @@ export function Heading({
   typography,
   decoration,
   textStyle,
+  effect,
   boxed,
 }: HeadingProps & {
   /** In a background box: even spacing above and below, not just above. */
@@ -425,6 +444,7 @@ export function Heading({
           color: color || undefined,
           fontFamily: fontFamily(font),
           ...textStyleCss({ ...textStyle, underline: undefined }),
+          ...textEffectCss(effect),
         }}
         className={
           `${
@@ -446,19 +466,21 @@ export function TextBlock({
   font,
   typography,
   textStyle,
+  effect,
 }: {
   content: ReactNode;
   color?: string;
   font?: string;
   typography?: Typography;
   textStyle?: TextStyle;
+  effect?: TextEffect;
 }) {
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
     <div
       data-resize-box
       {...fontAttrs}
-      style={{ color: color || undefined, ...fontStyle, ...typographyVars(typography), ...textStyleCss(textStyle) }}
+      style={{ color: color || undefined, ...fontStyle, ...typographyVars(typography), ...textStyleCss(textStyle), ...textEffectCss(effect) }}
       className="mx-auto max-w-3xl px-6 py-6 text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.625) tracking-(--ls,normal) text-[color:var(--block-text,var(--color-zinc-700))] [&_:is(h2,h3)]:leading-(--lh,1.3) [&_a]:text-[var(--accent)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-[length:calc(1.5rem*var(--fs,1))] [&_h2]:font-bold [&_h2]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_h3]:mt-6 [&_h3]:text-[length:calc(1.25rem*var(--fs,1))] [&_h3]:font-semibold [&_h3]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--accent)] [&_blockquote]:pl-4 [&_blockquote]:italic"
     >
       <FontImport font={font} />
@@ -479,9 +501,21 @@ export type ButtonProps = {
   typography: Typography;
   /** Missing on pages saved before it existed (handled). */
   textStyle: TextStyle;
+  effect: TextEffect;
 };
 
-export function Button({ label, href, variant, align, color, textColor, font, typography, textStyle }: ButtonProps) {
+export function Button({
+  label,
+  href,
+  variant,
+  align,
+  color,
+  textColor,
+  font,
+  typography,
+  textStyle,
+  effect,
+}: ButtonProps) {
   if (!label) return null;
   const { style: fontStyle, ...fontAttrs } = fontProps(font);
   return (
@@ -496,7 +530,7 @@ export function Button({ label, href, variant, align, color, textColor, font, ty
         variant={variant}
         color={color}
         textColor={textColor}
-        style={textStyleCss(textStyle)}
+        style={{ ...textStyleCss(textStyle), ...textEffectCss(effect) }}
         resizeBox
       >
         {label}
