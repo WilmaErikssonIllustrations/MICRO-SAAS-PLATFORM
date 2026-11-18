@@ -566,6 +566,10 @@ function FieldItem({
   const label = (field.metadata?.menuLabel as string | undefined) ?? (field.label ?? name).replace(/\s*\(.*\)$/, "");
   const kind = field.metadata?.kind as string | undefined;
   if (field.visible === false) return null;
+  // Settings that only matter with something else set, e.g. the hero's
+  // image settings (metadata.needs: "image") once it has an image.
+  const needs = field.metadata?.needs as string | undefined;
+  if (needs && block && !block.props[needs]) return null;
 
   switch (field.type) {
     case "number": {

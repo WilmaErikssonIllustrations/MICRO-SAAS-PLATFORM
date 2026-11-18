@@ -247,7 +247,8 @@ export const pageConfig: PageConfig = {
         image: inGroup(imageField("Bakgrundsbild (valfri)"), "heroBackground"),
         imageEdit: inGroup(imageEditField("image", "imageEdit", true), "heroBackground"),
         imageFit: {
-          metadata: { group: "heroBackground" },
+          // needs: only shown once the hero has an image.
+          metadata: { group: "heroBackground", needs: "image" },
           type: "radio",
           label: "Bildvisning",
           options: [
@@ -256,7 +257,7 @@ export const pageConfig: PageConfig = {
           ],
         },
         mobileFit: {
-          metadata: { group: "heroBackground" },
+          metadata: { group: "heroBackground", needs: "image" },
           type: "radio",
           label: "På mobil",
           options: [
@@ -284,7 +285,7 @@ export const pageConfig: PageConfig = {
           metadata: { unitProp: "heroHeightUnit", group: "heroBackground" },
         },
         overlay: {
-          metadata: { group: "heroBackground" },
+          metadata: { group: "heroBackground", needs: "image" },
           type: "radio",
           label: "Ton över bilden",
           options: [
