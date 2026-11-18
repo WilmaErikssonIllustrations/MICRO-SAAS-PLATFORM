@@ -55,6 +55,8 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   const getPuck = useGetPuck();
   const item = usePuck((s) => s.getItemById(target.blockId));
   const [tab, setTab] = useState<Tab>("adjust");
+  // With its own phone position, the preview can show the image as on a phone.
+  const [phonePreview, setPhonePreview] = useState(false);
   const src = item?.props[target.imageProp as keyof typeof item.props];
   const edit = withImageDefaults(item?.props[target.editProp as keyof typeof item.props] as Partial<ImageEdit>);
 
@@ -82,7 +84,36 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
     >
       <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl md:flex-row">
         <div className="flex min-h-64 flex-1 items-center justify-center bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-size-[20px_20px] p-6">
-          <Preview src={src} edit={edit} background={target.background} onFocus={(x, y) => change({ focusX: x, focusY: y })} showFocus={tab === "crop"} />
+          <div className="flex w-full flex-col items-center gap-3">
+            {edit.mobileFocus && (
+              <div role="tablist" aria-label="Förhandsvisning" className="flex gap-1 rounded-lg bg-white/90 p-1 text-sm shadow-sm">
+                {([false, true] as const).map((phone) => (
+                  <button
+                    key={String(phone)}
+                    type="button"
+                    role="tab"
+                    aria-selected={phonePreview === phone}
+                    onClick={() => setPhonePreview(phone)}
+                    className={`rounded-md px-3 py-1 font-medium ${
+                      phonePreview === phone ? "bg-violet-600 text-white" : "text-zinc-600 hover:text-zinc-900"
+                    }`}
+                  >
+                    {phone ? "Mobil" : "Dator"}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Preview
+              src={src}
+              edit={edit}
+              background={target.background}
+              phone={edit.mobileFocus && phonePreview ? phoneFrame(item, target.background) : null}
+              onFocus={(x, y) =>
+                change(edit.mobileFocus && phonePreview ? { mobileFocusX: x, mobileFocusY: y } : { focusX: x, focusY: y })
+              }
+              showFocus={tab === "crop"}
+            />
+          </div>
         </div>
 
         <div className="flex w-full flex-col border-t border-zinc-200 md:w-80 md:border-t-0 md:border-l">
@@ -157,19 +188,21 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
                 <Toggle
                   label="Egen position på mobil"
                   active={edit.mobileFocus}
-                  onClick={() =>
+                  onClick={() => {
                     // Starts from the current position, so turning it on changes nothing yet.
                     change(
                       edit.mobileFocus
                         ? { mobileFocus: false }
                         : { mobileFocus: true, mobileFocusX: edit.focusX, mobileFocusY: edit.focusY },
-                    )
-                  }
+                    );
+                    setPhonePreview(!edit.mobileFocus);
+                  }}
                 />
                 {edit.mobileFocus && (
                   <>
                     <p className="text-xs text-zinc-500">
-                      Gäller bara på mobil. Den lila punkten i bilden visar mobilens mitt.
+                      Gäller bara på mobil. Förhandsvisningen under Mobil visar bilden som på en telefon; klicka i den för
+                      att välja mobilens mitt.
                     </p>
                     <Slider
                       label="Mobil: vågrätt"
@@ -221,26 +254,50 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   );
 }
 
-/** The image as it will look on the page; click it to set the focus point. */
+/**
+ * How the image is framed on a phone: a tall crop where it fills an area
+ * (the Hero with "Samma som på datorn", background boxes), else uncropped
+ * (the Hero shows the whole image on phones otherwise; Bild keeps its format).
+ */
+type PhoneFrame = { aspectRatio?: string };
+
+function phoneFrame(item: { type: string; props: Record<string, unknown> }, background: boolean): PhoneFrame {
+  if (item.type === "Hero") return (item.props.mobileFit ?? "whole") === "same" ? { aspectRatio: "9 / 16" } : {};
+  return background ? { aspectRatio: "4 / 5" } : {};
+}
+
+/** The image as it will look on the page (or a phone); click it to set the focus point. */
 function Preview({
   src,
   edit,
   background,
+  phone,
   showFocus,
   onFocus,
 }: {
   src: string;
   edit: ImageEdit;
   background: boolean;
+  /** Show it as on a phone, with the phone focus point. */
+  phone: PhoneFrame | null;
   showFocus: boolean;
   onFocus: (x: number, y: number) => void;
 }) {
-  const frame = background ? { aspectRatio: "16 / 9" } : imageFrameStyle(edit);
-  const cropped = background || edit.aspect !== "original";
+  const phoneCropped = phone ? Boolean(phone.aspectRatio) || (!background && edit.aspect !== "original") : false;
+  const frame = phone
+    ? { ...(background ? {} : imageFrameStyle(edit)), ...(phone.aspectRatio && { aspectRatio: phone.aspectRatio }) }
+    : background
+      ? { aspectRatio: "16 / 9" }
+      : imageFrameStyle(edit);
+  const cropped = phone ? phoneCropped : background || edit.aspect !== "original";
+  // On a phone the phone focus point is the one in use.
+  const shown = phone ? { ...edit, focusX: edit.mobileFocusX, focusY: edit.mobileFocusY, mobileFocus: false } : edit;
   return (
     <div
       style={frame}
-      className={`relative w-full max-w-xl cursor-crosshair overflow-hidden shadow-lg ${cropped ? "" : "max-h-[60vh]"}`}
+      className={`relative w-full cursor-crosshair overflow-hidden shadow-lg ${
+        phone ? "max-w-60 rounded-[1.75rem] ring-8 ring-zinc-900" : "max-w-xl"
+      } ${cropped ? "" : "max-h-[60vh]"}`}
       onClick={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
         onFocus(
@@ -250,20 +307,14 @@ function Preview({
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
-      <img src={src} alt="" style={imageEditStyle(edit)} className={`block w-full object-cover ${cropped ? "h-full" : "h-auto"}`} />
+      <img src={src} alt="" style={imageEditStyle(shown)} className={`block w-full object-cover ${cropped ? "h-full" : "h-auto"}`} />
       {showFocus && (
         <span
           aria-hidden
-          className="pointer-events-none absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)]"
-          style={{ left: `${edit.focusX}%`, top: `${edit.focusY}%` }}
-        />
-      )}
-      {showFocus && edit.mobileFocus && (
-        <span
-          aria-hidden
-          title="Mobil"
-          className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow-[0_0_0_1px_rgba(0,0,0,.4)]"
-          style={{ left: `${edit.mobileFocusX}%`, top: `${edit.mobileFocusY}%` }}
+          className={`pointer-events-none absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${
+            phone ? "bg-violet-600" : ""
+          }`}
+          style={{ left: `${shown.focusX}%`, top: `${shown.focusY}%` }}
         />
       )}
     </div>
