@@ -55,8 +55,8 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   const getPuck = useGetPuck();
   const item = usePuck((s) => s.getItemById(target.blockId));
   const [tab, setTab] = useState<Tab>("adjust");
-  // The preview as on a computer or on a phone (Dator / Mobil above it).
-  const [phonePreview, setPhonePreview] = useState(false);
+  // The preview as on a computer, a tablet or a phone (the switch above it).
+  const [device, setDevice] = useState<Device>("desktop");
   const src = item?.props[target.imageProp as keyof typeof item.props];
   const edit = withImageDefaults(item?.props[target.editProp as keyof typeof item.props] as Partial<ImageEdit>);
 
@@ -86,18 +86,18 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
         <div className="flex min-h-64 flex-1 items-center justify-center bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-size-[20px_20px] p-6">
           <div className="flex w-full flex-col items-center gap-3">
             <div role="tablist" aria-label="Förhandsvisning" className="flex gap-1 rounded-lg bg-white/90 p-1 text-sm shadow-sm">
-              {([false, true] as const).map((phone) => (
+              {(Object.keys(DEVICES) as Device[]).map((key) => (
                 <button
-                  key={String(phone)}
+                  key={key}
                   type="button"
                   role="tab"
-                  aria-selected={phonePreview === phone}
-                  onClick={() => setPhonePreview(phone)}
+                  aria-selected={device === key}
+                  onClick={() => setDevice(key)}
                   className={`rounded-md px-3 py-1 font-medium ${
-                    phonePreview === phone ? "bg-violet-600 text-white" : "text-zinc-600 hover:text-zinc-900"
+                    device === key ? "bg-violet-600 text-white" : "text-zinc-600 hover:text-zinc-900"
                   }`}
                 >
-                  {phone ? "Mobil" : "Dator"}
+                  {DEVICES[key]}
                 </button>
               ))}
             </div>
@@ -105,10 +105,11 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
               src={src}
               edit={edit}
               background={target.background}
-              phone={phonePreview ? phoneFrame(item, target.background) : null}
+              device={device === "desktop" ? null : deviceFrame(device, item, target.background)}
               onFocus={(x, y) =>
-                // A click in the phone view picks the phone's own position.
-                change(phonePreview ? { mobileFocus: true, mobileFocusX: x, mobileFocusY: y } : { focusX: x, focusY: y })
+                // A click in the phone view picks the phone's own position;
+                // a tablet uses the computer's.
+                change(device === "phone" ? { mobileFocus: true, mobileFocusX: x, mobileFocusY: y } : { focusX: x, focusY: y })
               }
               showFocus={tab === "crop"}
             />
@@ -194,7 +195,7 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
                         ? { mobileFocus: false }
                         : { mobileFocus: true, mobileFocusX: edit.focusX, mobileFocusY: edit.focusY },
                     );
-                    if (!edit.mobileFocus) setPhonePreview(true);
+                    if (!edit.mobileFocus) setDevice("phone");
                   }}
                 />
                 {edit.mobileFocus && (
@@ -253,42 +254,68 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   );
 }
 
-/**
- * How the image is framed on a phone: a tall crop where it fills an area
- * (the Hero with "Samma som på datorn", background boxes), else uncropped
- * (the Hero shows the whole image on phones otherwise; Bild keeps its format).
- */
-type PhoneFrame = { aspectRatio?: string };
+const DEVICES = { desktop: "Dator", tablet: "Surfplatta", phone: "Mobil" } as const;
+type Device = keyof typeof DEVICES;
 
-function phoneFrame(item: { type: string; props: Record<string, unknown> }, background: boolean): PhoneFrame {
-  if (item.type === "Hero") return (item.props.mobileFit ?? "whole") === "same" ? { aspectRatio: "9 / 16" } : {};
-  return background ? { aspectRatio: "4 / 5" } : {};
+/**
+ * How the image is framed on a tablet or phone. Phones (below 640 px): a
+ * tall crop where it fills an area (the Hero with "Samma som på datorn",
+ * background boxes), else uncropped (the Hero shows the whole image on
+ * phones otherwise; Bild keeps its format). Tablets get the computer
+ * layout: the Hero fills a wide area unless it shows the whole image.
+ */
+type DeviceFrame = { kind: "tablet" | "phone"; aspectRatio?: string };
+
+function deviceFrame(
+  kind: DeviceFrame["kind"],
+  item: { type: string; props: Record<string, unknown> },
+  background: boolean,
+): DeviceFrame {
+  if (kind === "phone") {
+    if (item.type === "Hero") {
+      return (item.props.mobileFit ?? "whole") === "same" ? { kind, aspectRatio: "9 / 16" } : { kind };
+    }
+    return background ? { kind, aspectRatio: "4 / 5" } : { kind };
+  }
+  if (item.type === "Hero") {
+    // As in Hero (blocks.tsx): the whole image only without a set height.
+    const whole = item.props.imageFit === "whole" && !item.props.heroHeight;
+    return whole ? { kind } : { kind, aspectRatio: "5 / 4" };
+  }
+  return background ? { kind, aspectRatio: "4 / 3" } : { kind };
 }
 
-/** The image as it will look on the page (or a phone); click it to set the focus point. */
+const deviceClasses = {
+  tablet: "max-w-md rounded-[1.25rem] ring-[10px] ring-zinc-900",
+  phone: "max-w-60 rounded-[1.75rem] ring-8 ring-zinc-900",
+} as const;
+
+/** The image as it will look on the page (or a device); click it to set the focus point. */
 function Preview({
   src,
   edit,
   background,
-  phone,
+  device,
   showFocus,
   onFocus,
 }: {
   src: string;
   edit: ImageEdit;
   background: boolean;
-  /** Show it as on a phone, with the phone focus point. */
-  phone: PhoneFrame | null;
+  /** Show it as on a tablet or phone (a phone with its own focus point). */
+  device: DeviceFrame | null;
   showFocus: boolean;
   onFocus: (x: number, y: number) => void;
 }) {
-  const phoneCropped = phone ? Boolean(phone.aspectRatio) || (!background && edit.aspect !== "original") : false;
-  const frame = phone
-    ? { ...(background ? {} : imageFrameStyle(edit)), ...(phone.aspectRatio && { aspectRatio: phone.aspectRatio }) }
+  const phone = device?.kind === "phone";
+  const frame = device
+    ? { ...(background ? {} : imageFrameStyle(edit)), ...(device.aspectRatio && { aspectRatio: device.aspectRatio }) }
     : background
       ? { aspectRatio: "16 / 9" }
       : imageFrameStyle(edit);
-  const cropped = phone ? phoneCropped : background || edit.aspect !== "original";
+  const cropped = device
+    ? Boolean(device.aspectRatio) || (!background && edit.aspect !== "original")
+    : background || edit.aspect !== "original";
   // On a phone its own focus point is the one in use, if it has one.
   const shown =
     phone && edit.mobileFocus
@@ -298,7 +325,7 @@ function Preview({
     <div
       style={frame}
       className={`relative w-full cursor-crosshair overflow-hidden shadow-lg ${
-        phone ? "max-w-60 rounded-[1.75rem] ring-8 ring-zinc-900" : "max-w-xl"
+        device ? deviceClasses[device.kind] : "max-w-xl"
       } ${cropped ? "" : "max-h-[60vh]"}`}
       onClick={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
