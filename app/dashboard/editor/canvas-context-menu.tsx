@@ -290,7 +290,7 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
               submenu={<BlockPicker onPick={(type) => run(() => insertBlock(getPuck, type, zone, index + 1))} />}
             />
             <MenuItem
-              label="Lägg i sektion"
+              label="Gruppera"
               icon={<Icon><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M7 9h10M7 13h6" /></Icon>}
               onSelect={() => run(() => wrapInSection(getPuck, id))}
             />
@@ -487,7 +487,7 @@ const COLUMN_SLOTS = ["left", "right", "third", "fourth"];
 
 /**
  * Settings of the container a block is in, so its background can be
- * changed from the block: the Sektion, or the column and the whole
+ * changed from the block: the Grupp, or the column and the whole
  * Kolumner. One row with a submenu, or nothing on the page itself.
  */
 function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
@@ -502,7 +502,7 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
   const parentProps = parent.props as Record<string, unknown>;
   const color = (value: unknown) => (typeof value === "string" ? value : "");
   const setParent = (patch: Record<string, unknown>) => updateBlockProps(getPuck(), parentId, patch);
-  // A color replaces the Sektion's background image, like on the block itself.
+  // A color replaces the Grupp's background image, like on the block itself.
   const setParentColor = (bgColor: string) =>
     setParent(bgColor && parentProps.bgImage ? { bgColor, bgImage: "" } : { bgColor });
   const selectParent = () => {
@@ -519,13 +519,13 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
     parent.type === "Section" ? (
       <>
         <MenuItem
-          label="Sektionens bakgrundsfärg"
+          label="Gruppens bakgrundsfärg"
           icon={paletteIcon}
           hint={<Swatch color={color(parentProps.bgColor)} />}
           face={<FillColorFace color={color(parentProps.bgColor)} />}
           submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={setParentColor} />}
         />
-        <MenuItem label="Markera sektionen" icon={selectIcon} onSelect={selectParent} />
+        <MenuItem label="Markera gruppen" icon={selectIcon} onSelect={selectParent} />
       </>
     ) : (
       <>
@@ -565,7 +565,7 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
 
   return (
     <MenuItem
-      label={parent.type === "Section" ? "Sektion" : "Kolumner"}
+      label={parent.type === "Section" ? "Grupp" : "Kolumner"}
       face="label"
       icon={<Icon><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M7 9h10M7 13h6" /></Icon>}
       submenu={items}
@@ -573,14 +573,14 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
   );
 }
 
-/** Puts a block into a new Sektion at its place, and selects the Sektion. */
+/** Puts a block into a new Grupp (Section) at its place, and selects the Grupp. */
 function wrapInSection(getPuck: () => PuckApi, id: string) {
   const selector = getPuck().getSelectorForId(id);
   if (!selector) return;
   const sectionId = `Section-${crypto.randomUUID()}`;
   const { dispatch } = getPuck();
   dispatch({ type: "insert", componentType: "Section", destinationIndex: selector.index, destinationZone: selector.zone, id: sectionId });
-  // The new Sektion pushed the block one step down.
+  // The new Grupp pushed the block one step down.
   dispatch({
     type: "move",
     sourceIndex: selector.index + 1,

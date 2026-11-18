@@ -20,7 +20,7 @@ const usePuck = createUsePuck<PageConfig>();
 //   text    - Hero, Rubrik, Text, Knapp: the text size (corner); on the
 //             Hero, of the clicked part (title, subtitle, button)
 //   columns - Kolumner: the widths of two neighboring columns (dividers)
-//   box     - Sektion: only its background box (below)
+//   box     - Grupp: only its background box (below)
 // Blocks mark the element to put handles on with `data-resize-box`.
 // Blocks with a background box (BlockBackground, `data-box`) also get
 // filled handles for the box's width and height, and an element marked

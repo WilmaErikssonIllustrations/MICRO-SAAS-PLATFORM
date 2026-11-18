@@ -678,7 +678,7 @@ export const pageConfig: PageConfig = {
         ),
     },
     Section: {
-      label: "Sektion",
+      label: "Grupp",
       fields: {
         layerName: layerNameField,
         content: { type: "slot", label: "Innehåll" },

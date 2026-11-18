@@ -15,7 +15,7 @@ export const BLOCKS: Record<string, { label: string; hint: string; icon: ReactNo
       </>
     ),
   },
-  Heading: { label: "Rubrik", hint: "Ny sektion", icon: <path d="M6 5v14M18 5v14M6 12h12" /> },
+  Heading: { label: "Rubrik", hint: "Rubrik för ett nytt avsnitt", icon: <path d="M6 5v14M18 5v14M6 12h12" /> },
   Text: { label: "Text", hint: "Stycken och listor", icon: <path d="M4 6h16M4 10h16M4 14h16M4 18h10" /> },
   Image: {
     label: "Bild",
@@ -39,8 +39,8 @@ export const BLOCKS: Record<string, { label: string; hint: string; icon: ReactNo
     ),
   },
   Section: {
-    label: "Sektion",
-    hint: "Grupp av block med egen bakgrund",
+    label: "Grupp",
+    hint: "Block med gemensam bakgrund",
     icon: (
       <>
         <rect x="3" y="4" width="18" height="16" rx="3" />

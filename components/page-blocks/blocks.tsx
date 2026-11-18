@@ -86,7 +86,7 @@ export function SiteRoot({
     fontCss([headingFont, bodyFont], customFonts),
     ".site-root :is(h1,h2,h3){font-family:var(--font-heading)}",
     ".site-root [data-font] :is(h1,h2,h3){font-family:inherit}",
-    // In a Sektion, no space above the first block or below the last one
+    // In a Grupp (Section), no space above the first block or below the last one
     // (the space between blocks stays). `data-block` marks a block's outer
     // element; in the editor Puck wraps each block in one more element.
     ".section-content>[data-block]:first-child,.section-content>:first-child>[data-block]{padding-top:0}",
@@ -528,7 +528,7 @@ export function Button({
       {...fontAttrs}
       style={{ ...fontStyle, ...typographyVars(typography) }}
       data-block
-      // The space above the button is here, not on the button, so a Sektion
+      // The space above the button is here, not on the button, so a Grupp
       // can take it away (see .section-content in SiteRoot).
       className={`mx-auto flex max-w-3xl flex-col px-6 pt-10 pb-6 ${alignClass[align]}`}
     >
