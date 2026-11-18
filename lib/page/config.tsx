@@ -120,7 +120,7 @@ function partAlignField(label: string, part: string) {
     label,
     // menuLabel: the right-click menu lists these under the part's name.
     metadata: { part, menuLabel: "Justering" },
-    options: [{ label: "Som heron", value: "" }, ...alignField.options],
+    options: [{ label: "Auto", value: "" }, ...alignField.options],
   } as const;
 }
 
@@ -690,7 +690,8 @@ export const pageConfig: PageConfig = {
         withBackground(
           props,
           <Section>
-            <Content />
+            {/* See .section-content in SiteRoot: no space at the section's edges. */}
+            <Content className="section-content" />
           </Section>,
         ),
     },

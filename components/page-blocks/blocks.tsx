@@ -86,6 +86,11 @@ export function SiteRoot({
     fontCss([headingFont, bodyFont], customFonts),
     ".site-root :is(h1,h2,h3){font-family:var(--font-heading)}",
     ".site-root [data-font] :is(h1,h2,h3){font-family:inherit}",
+    // In a Sektion, no space above the first block or below the last one
+    // (the space between blocks stays). `data-block` marks a block's outer
+    // element; in the editor Puck wraps each block in one more element.
+    ".section-content>[data-block]:first-child,.section-content>:first-child>[data-block]{padding-top:0}",
+    ".section-content>[data-block]:last-child,.section-content>:last-child>[data-block]{padding-bottom:0}",
   ].join("\n");
 
   return (
@@ -391,7 +396,7 @@ export function Hero({
             textColor={buttonTextColor}
             part="cta"
             style={partStyle(ctaFont, ctaTypography, ctaStyle, ctaEffect)}
-            className={selfAlignClass[ctaAlign ?? ""]}
+            className={`mt-10 ${selfAlignClass[ctaAlign ?? ""]}`}
           >
             {ctaText}
           </ButtonLink>
@@ -433,6 +438,7 @@ export function Heading({
   return (
     <div
       style={typographyVars(typography)}
+      data-block
       className={`mx-auto flex w-full max-w-3xl flex-col px-6 ${boxed ? "py-8" : "pt-12"} ${alignClass[align]}`}
     >
       <FontImport font={font} />
@@ -479,6 +485,7 @@ export function TextBlock({
       data-resize-box
       {...fontAttrs}
       style={{ color: color || undefined, ...fontStyle, ...typographyVars(typography), ...textStyleCss(textStyle), ...textEffectCss(effect) }}
+      data-block
       className="mx-auto max-w-3xl px-6 py-6 text-[length:calc(1.125rem*var(--fs,1))] leading-(--lh,1.625) tracking-(--ls,normal) text-[color:var(--block-text,var(--color-zinc-700))] [&_:is(h2,h3)]:leading-(--lh,1.3) [&_a]:text-[var(--accent)] [&_a]:underline [&_h2]:mt-8 [&_h2]:text-[length:calc(1.5rem*var(--fs,1))] [&_h2]:font-bold [&_h2]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_h3]:mt-6 [&_h3]:text-[length:calc(1.25rem*var(--fs,1))] [&_h3]:font-semibold [&_h3]:text-[color:var(--block-heading,var(--color-zinc-900))] [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--accent)] [&_blockquote]:pl-4 [&_blockquote]:italic"
     >
       <FontImport font={font} />
@@ -520,7 +527,10 @@ export function Button({
     <div
       {...fontAttrs}
       style={{ ...fontStyle, ...typographyVars(typography) }}
-      className={`mx-auto flex max-w-3xl flex-col px-6 pb-6 ${alignClass[align]}`}
+      data-block
+      // The space above the button is here, not on the button, so a Sektion
+      // can take it away (see .section-content in SiteRoot).
+      className={`mx-auto flex max-w-3xl flex-col px-6 pt-10 pb-6 ${alignClass[align]}`}
     >
       <FontImport font={font} />
       <ButtonLink
@@ -574,7 +584,7 @@ function ButtonLink({
       href={href}
       rel="noopener noreferrer"
       style={{ ...accentStyle(color), color: textColor || undefined, ...style }}
-      className={`${className} mt-10 inline-flex items-center rounded-full px-8 py-3 text-[length:calc(1rem*var(--fs,1))] leading-(--lh,1.5) font-semibold tracking-(--ls,normal) shadow-sm transition-transform hover:scale-105 ${buttonVariant[variant]}`}
+      className={`${className} inline-flex items-center rounded-full px-8 py-3 text-[length:calc(1rem*var(--fs,1))] leading-(--lh,1.5) font-semibold tracking-(--ls,normal) shadow-sm transition-transform hover:scale-105 ${buttonVariant[variant]}`}
     >
       {children}
     </a>
@@ -617,7 +627,7 @@ export function Columns({
   // Stacked on phones; side by side from md up.
   const style = { "--cols": fractions.map((f) => `minmax(0,${f}fr)`).join(" ") } as CSSProperties;
   return (
-    <div data-resize-box style={style} className="mx-auto grid max-w-5xl gap-8 px-6 py-6 md:grid-cols-(--cols)">
+    <div data-resize-box data-block style={style} className="mx-auto grid max-w-5xl gap-8 px-6 py-6 md:grid-cols-(--cols)">
       {columns.slice(0, fractions.length).map((column, index) => {
         const color = columnColors?.[index];
         return (
@@ -652,7 +662,7 @@ export function ImageBlock({ src, alt, width, widthPx, widthUnit, edit, imageCon
     // An empty image is only shown in the editor, as a place to upload one.
     if (!imageControls) return null;
     return (
-      <div className="mx-auto max-w-2xl px-6 py-6">
+      <div data-block className="mx-auto max-w-2xl px-6 py-6">
         <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
           {imageControls}
           <span>JPG, PNG, WebP, GIF eller AVIF</span>
@@ -665,6 +675,7 @@ export function ImageBlock({ src, alt, width, widthPx, widthUnit, edit, imageCon
   const edgeToEdge = percent ? widthPx >= 100 : width === "full";
   return (
     <figure
+      data-block
       className={`group relative mx-auto py-6 ${width === "full" || percent ? "" : "px-6"} ${
         percent ? imageWidth.full : imageWidth[width]
       }`}
@@ -704,7 +715,7 @@ function HoverControls({ children }: { children: ReactNode }) {
 /** A container for other blocks; its background (BlockBackground) covers them all. */
 export function Section({ children }: { children: ReactNode }) {
   return (
-    <div data-resize-box className="py-6">
+    <div data-resize-box>
       {children}
     </div>
   );
