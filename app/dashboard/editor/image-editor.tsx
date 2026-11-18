@@ -154,6 +154,39 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
                 <p className="text-xs text-zinc-500">Klicka i bilden för att välja vad som ska synas i mitten.</p>
                 <Slider label="Fokus vågrätt" value={edit.focusX} {...IMAGE_RANGES.focusX} unit=" %" onChange={(focusX) => change({ focusX })} />
                 <Slider label="Fokus lodrätt" value={edit.focusY} {...IMAGE_RANGES.focusY} unit=" %" onChange={(focusY) => change({ focusY })} />
+                <Toggle
+                  label="Egen position på mobil"
+                  active={edit.mobileFocus}
+                  onClick={() =>
+                    // Starts from the current position, so turning it on changes nothing yet.
+                    change(
+                      edit.mobileFocus
+                        ? { mobileFocus: false }
+                        : { mobileFocus: true, mobileFocusX: edit.focusX, mobileFocusY: edit.focusY },
+                    )
+                  }
+                />
+                {edit.mobileFocus && (
+                  <>
+                    <p className="text-xs text-zinc-500">
+                      Gäller bara på mobil. Den lila punkten i bilden visar mobilens mitt.
+                    </p>
+                    <Slider
+                      label="Mobil: vågrätt"
+                      value={edit.mobileFocusX}
+                      {...IMAGE_RANGES.mobileFocusX}
+                      unit=" %"
+                      onChange={(mobileFocusX) => change({ mobileFocusX })}
+                    />
+                    <Slider
+                      label="Mobil: lodrätt"
+                      value={edit.mobileFocusY}
+                      {...IMAGE_RANGES.mobileFocusY}
+                      unit=" %"
+                      onChange={(mobileFocusY) => change({ mobileFocusY })}
+                    />
+                  </>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <Toggle label="Spegla vågrätt" active={edit.flipX} onClick={() => change({ flipX: !edit.flipX })} />
                   <Toggle label="Spegla lodrätt" active={edit.flipY} onClick={() => change({ flipY: !edit.flipY })} />
@@ -223,6 +256,14 @@ function Preview({
           aria-hidden
           className="pointer-events-none absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)]"
           style={{ left: `${edit.focusX}%`, top: `${edit.focusY}%` }}
+        />
+      )}
+      {showFocus && edit.mobileFocus && (
+        <span
+          aria-hidden
+          title="Mobil"
+          className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow-[0_0_0_1px_rgba(0,0,0,.4)]"
+          style={{ left: `${edit.mobileFocusX}%`, top: `${edit.mobileFocusY}%` }}
         />
       )}
     </div>

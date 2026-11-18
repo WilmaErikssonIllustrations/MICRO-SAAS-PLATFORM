@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { getContrastText } from "@/lib/color";
 import { type Box, boxRowStyle, boxStyle, cssHeight, type HeightUnit, isDefaultBox } from "@/lib/page/box";
 import { type CustomFont, fontCss, fontFamily } from "@/lib/page/fonts";
-import { type ImageEdit, imageEditStyle, imageFrameStyle } from "@/lib/page/image-edit";
+import { type ImageEdit, imageEditStyle, imageFrameStyle, MOBILE_FOCUS_CSS } from "@/lib/page/image-edit";
 import { type TextEffect, textEffectCss } from "@/lib/page/text-effect";
 import { type TextStyle, textStyleCss } from "@/lib/page/text-style";
 import { type Typography, typographyVars } from "@/lib/page/typography";
@@ -86,6 +86,7 @@ export function SiteRoot({
     fontCss([headingFont, bodyFont], customFonts),
     ".site-root :is(h1,h2,h3){font-family:var(--font-heading)}",
     ".site-root [data-font] :is(h1,h2,h3){font-family:inherit}",
+    MOBILE_FOCUS_CSS,
     // In a Grupp (Section), no space above the first block or below the last one
     // (the space between blocks stays). `data-block` marks a block's outer
     // element; in the editor Puck wraps each block in one more element.

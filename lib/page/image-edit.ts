@@ -40,6 +40,10 @@ export type ImageEdit = {
   aspect: keyof typeof IMAGE_ASPECTS;
   focusX: number;
   focusY: number;
+  /** Its own focus point on phones (below 640 px), instead of focusX/Y. */
+  mobileFocus: boolean;
+  mobileFocusX: number;
+  mobileFocusY: number;
   zoom: number;
   radius: keyof typeof IMAGE_RADII;
 };
@@ -55,6 +59,9 @@ export const DEFAULT_IMAGE_EDIT: ImageEdit = {
   aspect: "original",
   focusX: 50,
   focusY: 50,
+  mobileFocus: false,
+  mobileFocusX: 50,
+  mobileFocusY: 50,
   zoom: 100,
   radius: "sm",
 };
@@ -67,6 +74,8 @@ export const IMAGE_RANGES = {
   blur: { min: 0, max: 10 },
   focusX: { min: 0, max: 100 },
   focusY: { min: 0, max: 100 },
+  mobileFocusX: { min: 0, max: 100 },
+  mobileFocusY: { min: 0, max: 100 },
   zoom: { min: 100, max: 300 },
 } as const;
 
@@ -100,8 +109,19 @@ export function imageEditStyle(value: Partial<ImageEdit> | undefined): CSSProper
     transform: transform || undefined,
     transformOrigin: `${edit.focusX}% ${edit.focusY}%`,
     objectPosition: `${edit.focusX}% ${edit.focusY}%`,
-  };
+    // Read by MOBILE_FOCUS_CSS on phones.
+    ...(edit.mobileFocus && { "--mobile-focus": `${edit.mobileFocusX}% ${edit.mobileFocusY}%` }),
+  } as CSSProperties;
 }
+
+/**
+ * Puts images with their own phone focus point (--mobile-focus, from
+ * imageEditStyle) on it below 640 px, Tailwind's `sm`, where the Hero
+ * switches to its phone layout. !important to win over the inline
+ * desktop position. Added to every page by SiteRoot.
+ */
+export const MOBILE_FOCUS_CSS =
+  '@media not all and (min-width:40rem){img[style*="--mobile-focus"]{object-position:var(--mobile-focus)!important;transform-origin:var(--mobile-focus)!important}}';
 
 /** CSS for the box around the image: crop format and corners. */
 export function imageFrameStyle(value: Partial<ImageEdit> | undefined): CSSProperties {
@@ -125,6 +145,7 @@ export function sanitizeImageEdit(value: unknown): ImageEdit {
   }
   if (typeof input.flipX === "boolean") edit.flipX = input.flipX;
   if (typeof input.flipY === "boolean") edit.flipY = input.flipY;
+  if (typeof input.mobileFocus === "boolean") edit.mobileFocus = input.mobileFocus;
   if (typeof input.filter === "string" && Object.hasOwn(IMAGE_FILTERS, input.filter)) {
     edit.filter = input.filter as ImageEdit["filter"];
   }
