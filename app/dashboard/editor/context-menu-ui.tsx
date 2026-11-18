@@ -574,6 +574,76 @@ export function NumberInput({
   );
 }
 
+/** A number with a choice of unit (e.g. px or %), and a save button. */
+export function NumberUnitInput({
+  value,
+  unit,
+  units,
+  min,
+  hint,
+  onSave,
+}: {
+  value: number;
+  unit: string;
+  units: { value: string; label: string; max: number }[];
+  min: number;
+  hint?: string;
+  onSave: (value: number, unit: string) => void;
+}) {
+  const [text, setText] = useState(String(value));
+  const [current, setCurrent] = useState(unit);
+  const max = units.find((u) => u.value === current)?.max ?? Infinity;
+  const number = Number(text);
+  const valid = text.trim() !== "" && Number.isFinite(number) && number >= min && number <= max;
+  return (
+    <form
+      className="grid gap-2 p-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (valid) onSave(Math.round(number), current);
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <input
+          autoFocus
+          type="number"
+          inputMode="numeric"
+          aria-label="Värde"
+          min={min}
+          max={max}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          className="h-9 min-w-0 flex-1 rounded-lg border border-zinc-200 px-2.5 text-sm tabular-nums focus:border-violet-500 focus:outline-none"
+        />
+        <div role="radiogroup" aria-label="Enhet" className="flex rounded-lg bg-zinc-100 p-0.5">
+          {units.map((u) => (
+            <button
+              key={u.value}
+              type="button"
+              role="radio"
+              aria-checked={current === u.value}
+              onClick={() => setCurrent(u.value)}
+              className={`h-8 min-w-9 rounded-md px-2 text-sm font-medium ${
+                current === u.value ? "bg-white text-violet-800 shadow-sm" : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              {u.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {hint && <p className="text-xs text-zinc-500">{hint}</p>}
+      <button
+        type="submit"
+        disabled={!valid}
+        className="h-8 rounded-lg bg-violet-600 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+      >
+        Spara
+      </button>
+    </form>
+  );
+}
+
 /** Upload or remove an image. */
 export function ImageActions({ hasImage, onChange }: { hasImage: boolean; onChange: (url: string) => void }) {
   const { upload, uploading, error } = useImageUpload();

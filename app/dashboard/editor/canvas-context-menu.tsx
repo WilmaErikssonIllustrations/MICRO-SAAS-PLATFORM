@@ -41,6 +41,7 @@ import {
   MenuHeader,
   MenuItem,
   NumberInput,
+  NumberUnitInput,
   OptionRow,
   Swatch,
   TextInput,
@@ -102,21 +103,21 @@ function useViewportBar() {
 
 // The settings of the selected block (or of the clicked part of it, e.g.
 // the Hero's title), as icons with dropdowns beside the viewport buttons.
-// With nothing selected, the page's settings. Replaces Puck's side panel.
+// Nothing shows with nothing selected. Replaces Puck's side panel.
 function SettingsToolbar({ doc }: { doc?: Document }) {
   const bar = useViewportBar();
   const selectedId = usePuck((s) => s.selectedItem?.props.id as string | undefined);
   const active = useActivePart();
-  if (!bar) return null;
+  // With nothing selected there is nothing to set: the page's name is in
+  // the top bar and fonts are picked per text block.
+  if (!bar || !selectedId) return null;
   const part = selectedId && active?.id === selectedId ? active.part : null;
 
   return createPortal(
     <div className="ml-1 flex items-center border-l border-zinc-200 pl-1">
       {/* Keyed so an open dropdown closes when the selection changes. */}
       <Toolbar key={`${selectedId}:${part}`} doc={doc}>
-        {(close) =>
-          selectedId ? <BlockFieldItems id={selectedId} part={part} close={close} /> : <PageFieldItems close={close} />
-        }
+        {(close) => <BlockFieldItems id={selectedId} part={part} close={close} />}
       </Toolbar>
     </div>,
     bar,
@@ -559,6 +560,7 @@ function FieldItem({
   block?: { id: string; props: Record<string, unknown> };
   optionalColor?: boolean;
 }) {
+  const getPuck = useGetPuck();
   const imageEditor = useImageEditor();
   const inToolbar = useInToolbar();
   // "Bakgrundsbild (valfri)" -> "Bakgrundsbild": the menu is narrow. A
@@ -584,17 +586,35 @@ function FieldItem({
           icon={<Icon><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" /></Icon>}
           hint={number > 0 ? `${number} ${screenShare ? "%" : "px"}` : "Auto"}
           submenu={
-            <NumberInput
-              value={number}
-              min={field.min ?? 0}
-              max={screenShare ? 200 : (field.max ?? 2000)}
-              unit={screenShare ? "% av skärmhöjden" : "px"}
-              hint={field.label?.match(/\((.*)\)$/)?.[1]}
-              onSave={(next) => {
-                onChange(next);
-                close();
-              }}
-            />
+            unitProp && block ? (
+              // The height and its unit in one place.
+              <NumberUnitInput
+                value={number}
+                unit={screenShare ? "vh" : "px"}
+                units={[
+                  { value: "px", label: "px", max: field.max ?? 2000 },
+                  { value: "vh", label: "%", max: 200 },
+                ]}
+                min={field.min ?? 0}
+                hint="0 = automatisk. % är andel av skärmens höjd."
+                onSave={(next, unit) => {
+                  updateBlockProps(getPuck(), block.id, { [name]: next, [unitProp]: unit });
+                  close();
+                }}
+              />
+            ) : (
+              <NumberInput
+                value={number}
+                min={field.min ?? 0}
+                max={field.max ?? 2000}
+                unit="px"
+                hint={field.label?.match(/\((.*)\)$/)?.[1]}
+                onSave={(next) => {
+                  onChange(next);
+                  close();
+                }}
+              />
+            )
           }
         />
       );
@@ -775,16 +795,20 @@ function FieldItem({
         );
       }
       if (kind === "font") {
+        // "" follows the page: show the font that is actually used.
+        const inherited = inheritedFont(getPuck(), block?.id);
+        const shown = text || inherited;
+        const shownLabel = shown ? fontLabel(shown) : DEFAULT_FONT_NAME;
         return (
           <MenuItem
             id={name}
             label={label}
             icon={<Icon><path d="M4 20 10 4h1l6 16M6.5 14h8" /></Icon>}
-            hint={<span style={{ fontFamily: fontFamily(text) }}>{fontLabel(text)}</span>}
+            hint={<span style={{ fontFamily: fontFamily(shown) }}>{shownLabel}</span>}
             face={
               <span className="flex h-7 w-36 items-center justify-between gap-1 rounded-md border border-zinc-300 px-2 font-normal">
-                <span className="truncate" style={{ fontFamily: fontFamily(text) }}>
-                  {fontLabel(text)}
+                <span className="truncate" style={{ fontFamily: fontFamily(shown) }}>
+                  {shownLabel}
                 </span>
                 <Icon className="shrink-0 text-zinc-500"><path d="m6 9 6 6 6-6" /></Icon>
               </span>
@@ -792,6 +816,7 @@ function FieldItem({
             scrollable
             submenu={
               <FontPicker
+                defaultLabel={`${inherited ? fontLabel(inherited) : DEFAULT_FONT_NAME} (standard)`}
                 value={text}
                 onChange={(font) => {
                   onChange(font);
@@ -930,8 +955,30 @@ function selectIcon(name: string, value: unknown): ReactNode {
   }
 }
 
+/** The site's own font (app/layout.tsx), used where no font is picked. */
+const DEFAULT_FONT_NAME = "Geist";
+
+/**
+ * The font a block gets when it has none of its own: the page font that
+ * older pages may still have set (headings for Rubrik), else "" (Geist).
+ */
+function inheritedFont(puck: PuckApi, blockId: string | undefined) {
+  const root = puck.appState.data.root.props as { headingFont?: string; bodyFont?: string } | undefined;
+  const isHeading = blockId ? puck.getItemById(blockId)?.type === "Heading" : false;
+  return (isHeading && root?.headingFont) || root?.bodyFont || "";
+}
+
 /** Fonts shown in their own typeface, plus uploading a new one. */
-function FontPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function FontPicker({
+  value,
+  defaultLabel,
+  onChange,
+}: {
+  value: string;
+  /** Name for "" (no font of its own), e.g. "Geist (standard)". */
+  defaultLabel: string;
+  onChange: (value: string) => void;
+}) {
   const getPuck = useGetPuck();
   const stored = usePuck((s) => s.appState.data.root.props?.customFonts);
   const customFonts: CustomFont[] = Array.isArray(stored) ? stored : [];
@@ -953,7 +1000,7 @@ function FontPicker({ value, onChange }: { value: string; onChange: (value: stri
   const option = (font: string) => (
     <OptionRow
       key={font}
-      label={fontLabel(font)}
+      label={font ? fontLabel(font) : defaultLabel}
       selected={value === font}
       labelStyle={{ fontFamily: fontFamily(font), fontSize: 15 }}
       onSelect={() => onChange(font)}

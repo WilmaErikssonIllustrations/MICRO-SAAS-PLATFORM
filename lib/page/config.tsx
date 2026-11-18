@@ -216,8 +216,10 @@ export const pageConfig: PageConfig = {
   root: {
     fields: {
       title: { type: "text", label: "Sidans namn" },
-      headingFont: fontField("Typsnitt för rubriker"),
-      bodyFont: fontField("Typsnitt för text"),
+      // Hidden: fonts are picked per text block. Pages that set these
+      // before keep them (see SiteRoot).
+      headingFont: { ...fontField("Typsnitt för rubriker"), visible: false },
+      bodyFont: { ...fontField("Typsnitt för text"), visible: false },
       customFonts: {
         type: "custom",
         label: "Egna typsnitt",
@@ -270,6 +272,8 @@ export const pageConfig: PageConfig = {
           metadata: { group: "heroBackground" },
           type: "radio",
           label: "Höjdenhet",
+          // Picked next to the height itself (metadata.unitProp on heroHeight).
+          visible: false,
           options: [
             { label: "Pixlar", value: "px" },
             { label: "% av skärmhöjden", value: "vh" },
