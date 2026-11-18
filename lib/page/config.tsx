@@ -32,7 +32,9 @@ import { ImageField } from "@/components/page-blocks/image-field";
 import { type Box, DEFAULT_BOX } from "@/lib/page/box";
 import type { CustomFont } from "@/lib/page/fonts";
 import { DEFAULT_IMAGE_EDIT, type ImageEdit } from "@/lib/page/image-edit";
+import { DEFAULT_TEXT_STYLE, type TextStyle } from "@/lib/page/text-style";
 import { DEFAULT_TYPOGRAPHY, type Typography } from "@/lib/page/typography";
+import { TextStyleField } from "@/components/page-blocks/text-style-field";
 import { TypographyField } from "@/components/page-blocks/typography-field";
 
 // The Puck config is shared by the editor (client) and the public page
@@ -48,7 +50,7 @@ type Block<Props> = Named<Props> & BackgroundProps;
 type Components = {
   Hero: Named<HeroProps>;
   Heading: Block<HeadingProps>;
-  Text: Block<{ content: RichText; color: string; font: string; typography: Typography }>;
+  Text: Block<{ content: RichText; color: string; font: string; typography: Typography; textStyle: TextStyle }>;
   Image: Block<ImageProps>;
   Button: Block<ButtonProps>;
   Columns: Block<{
@@ -185,6 +187,27 @@ function typographyField(basePx: number | Record<string, number>, baseProp?: str
   } satisfies CustomField<Typography>;
 }
 
+/**
+ * Bold / italic / underline (B, I, U in the toolbar). `defaultBold` is
+ * whether the element is bold without a choice.
+ */
+function textStyleField(defaultBold: boolean) {
+  const metadata = { kind: "textStyle", defaultBold };
+  return {
+    type: "custom",
+    label: "Stil",
+    metadata,
+    render: ({ value, onChange }) => (
+      <TextStyleField label="Stil" value={value} onChange={onChange} defaultBold={defaultBold} />
+    ),
+  } satisfies CustomField<TextStyle>;
+}
+
+/** Puts a field on one part of a block (metadata.part, see the Hero). */
+function onPart<F extends { metadata?: Record<string, unknown> }>(field: F, part: string, menuLabel?: string): F {
+  return { ...field, metadata: { ...field.metadata, part, ...(menuLabel && { menuLabel }) } };
+}
+
 /** A font; empty means the page's font. */
 function fontField(label: string) {
   return {
@@ -299,15 +322,25 @@ export const pageConfig: PageConfig = {
           ],
         },
         title: { type: "text", label: "Rubrik", contentEditable: true, metadata: { part: "title" } },
+        // Text settings per part; empty follows the hero.
+        titleFont: onPart(fontField("Rubrikens typsnitt"), "title", "Typsnitt"),
+        titleTypography: onPart(typographyField(60), "title"),
+        titleStyle: onPart(textStyleField(true), "title"),
         titleAlign: partAlignField("Rubrikens justering", "title"),
         titleColor: { ...colorField("Rubrikens färg"), metadata: { kind: "color", part: "title", menuLabel: "Färg" } },
         subtitle: { type: "textarea", label: "Underrubrik", contentEditable: true, metadata: { part: "subtitle" } },
+        subtitleFont: onPart(fontField("Underrubrikens typsnitt"), "subtitle", "Typsnitt"),
+        subtitleTypography: onPart(typographyField(20), "subtitle"),
+        subtitleStyle: onPart(textStyleField(false), "subtitle"),
         subtitleAlign: partAlignField("Underrubrikens justering", "subtitle"),
         subtitleColor: {
           ...colorField("Underrubrikens färg"),
           metadata: { kind: "color", part: "subtitle", menuLabel: "Färg" },
         },
         ctaText: { type: "text", label: "Knapptext", contentEditable: true, metadata: { part: "cta" } },
+        ctaFont: onPart(fontField("Knappens typsnitt"), "cta", "Typsnitt"),
+        ctaTypography: onPart(typographyField(16), "cta"),
+        ctaStyle: onPart(textStyleField(true), "cta"),
         ctaAlign: partAlignField("Knappens justering", "cta"),
         ctaLink: { type: "text", label: "Knapplänk", metadata: { kind: "url", part: "cta", menuLabel: "Länk" } },
         buttonColor: { ...colorField("Knappfärg"), metadata: { kind: "color", part: "cta", menuLabel: "Färg" } },
@@ -326,8 +359,10 @@ export const pageConfig: PageConfig = {
         },
         backgroundColor: inGroup(colorField("Egen bakgrundsfärg"), "heroBackground"),
         align: alignField,
-        font: fontField("Typsnitt"),
-        typography: typographyField(60),
+        // Hidden: text is styled per part (title, subtitle, button). Pages
+        // that set these before keep them, under the parts' own settings.
+        font: { ...fontField("Typsnitt"), visible: false },
+        typography: { ...typographyField(60), visible: false },
       },
       defaultProps: {
         layerName: "",
@@ -354,6 +389,15 @@ export const pageConfig: PageConfig = {
         align: "center",
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
+        titleFont: "",
+        titleTypography: DEFAULT_TYPOGRAPHY,
+        titleStyle: DEFAULT_TEXT_STYLE,
+        subtitleFont: "",
+        subtitleTypography: DEFAULT_TYPOGRAPHY,
+        subtitleStyle: DEFAULT_TEXT_STYLE,
+        ctaFont: "",
+        ctaTypography: DEFAULT_TYPOGRAPHY,
+        ctaStyle: DEFAULT_TEXT_STYLE,
       },
       render: ({ puck, ...props }) => (
         <Hero
@@ -388,6 +432,8 @@ export const pageConfig: PageConfig = {
         decoration: {
           type: "radio",
           label: "Understruken",
+          // Replaced by textStyle's underline; still read on older pages.
+          visible: false,
           options: [
             { label: "Nej", value: "none" },
             { label: "Ja", value: "underline" },
@@ -396,6 +442,7 @@ export const pageConfig: PageConfig = {
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
         typography: typographyField({ h2: 30, h3: 24 }, "level"),
+        textStyle: textStyleField(true),
         ...backgroundFields,
       },
       defaultProps: {
@@ -408,6 +455,7 @@ export const pageConfig: PageConfig = {
         color: "",
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
+        textStyle: DEFAULT_TEXT_STYLE,
       },
       render: (props) => withBackground(props, <Heading {...props} boxed={hasBackground(props)} />),
     },
@@ -419,12 +467,23 @@ export const pageConfig: PageConfig = {
         color: colorField("Textfärg"),
         font: fontField("Typsnitt"),
         typography: typographyField(18),
+        textStyle: textStyleField(false),
         ...backgroundFields,
       },
       defaultProps: {
-        ...backgroundDefaults, layerName: "", content: "<p>Skriv din text här.</p>", color: "", font: "", typography: DEFAULT_TYPOGRAPHY },
-      render: ({ content, color, font, typography, ...props }) =>
-        withBackground(props, <TextBlock content={content} color={color} font={font} typography={typography} />),
+        ...backgroundDefaults,
+        layerName: "",
+        content: "<p>Skriv din text här.</p>",
+        color: "",
+        font: "",
+        typography: DEFAULT_TYPOGRAPHY,
+        textStyle: DEFAULT_TEXT_STYLE,
+      },
+      render: ({ content, color, font, typography, textStyle, ...props }) =>
+        withBackground(
+          props,
+          <TextBlock content={content} color={color} font={font} typography={typography} textStyle={textStyle} />,
+        ),
     },
     Image: {
       label: "Bild",
@@ -477,6 +536,7 @@ export const pageConfig: PageConfig = {
         textColor: colorField("Textfärg"),
         font: fontField("Typsnitt"),
         typography: typographyField(16),
+        textStyle: textStyleField(true),
         ...backgroundFields,
       },
       defaultProps: {
@@ -490,6 +550,7 @@ export const pageConfig: PageConfig = {
         textColor: "",
         font: "",
         typography: DEFAULT_TYPOGRAPHY,
+        textStyle: DEFAULT_TEXT_STYLE,
       },
       render: (props) => withBackground(props, <Button {...props} />),
     },

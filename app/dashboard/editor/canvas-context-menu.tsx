@@ -22,6 +22,7 @@ import {
 import { ACCEPTED_FONT_TYPES, useFontUpload } from "@/components/page-blocks/use-upload";
 import type { Box } from "@/lib/page/box";
 import type { PageConfig } from "@/lib/page/config";
+import type { TextStyle } from "@/lib/page/text-style";
 import { TYPOGRAPHY_RANGES, type Typography, withTypographyDefaults } from "@/lib/page/typography";
 import {
   type CustomFont,
@@ -312,6 +313,19 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
   );
 }
 
+/** A color for text (vs. a fill like a background or button), by its label. */
+const isTextColor = (name: string, field: Field) => /text|rubrik/i.test(field.label ?? name);
+
+/** Font, size, text color, B/I/U, then everything else. */
+function textOrder(name: string, field: Field) {
+  const kind = field.metadata?.kind;
+  if (kind === "font") return 0;
+  if (kind === "typography") return 1;
+  if (kind === "color" && isTextColor(name, field)) return 2;
+  if (kind === "textStyle") return 3;
+  return 4;
+}
+
 /** Whether a block has settings of its own for `part` (metadata.part). */
 function hasPartFields(puck: PuckApi, item: ComponentData, part: string | null) {
   if (!part) return false;
@@ -338,7 +352,10 @@ export function BlockFieldItems({ id, part, close }: { id: string; part: string 
   const fields = Object.entries(puck.config.components[item.type]?.fields ?? {}) as [string, Field][];
   const partOf = (field: Field) => field.metadata?.part as string | undefined;
   const onPart = hasPartFields(puck, item, part);
-  const shown = fields.filter(([, field]) => (onPart ? partOf(field) === part : !partOf(field)));
+  const shown = fields
+    .filter(([, field]) => (onPart ? partOf(field) === part : !partOf(field)))
+    // Text settings first, in Canva's order; the rest as in the config.
+    .sort(([nameA, a], [nameB, b]) => textOrder(nameA, a) - textOrder(nameB, b));
 
   // Picking Ljus/Mörk etc. should win over a custom hero color.
   const changeField = (name: string, value: unknown) =>
@@ -681,7 +698,7 @@ function FieldItem({
             icon={<Icon><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" /></Icon>}
             hint={<Swatch color={text} />}
             // Like Canva: an "A" over the color for text, a dot for fills.
-            face={/text|rubrik/i.test(field.label ?? name) ? <TextColorFace color={text} /> : <FillColorFace color={text} />}
+            face={isTextColor(name, field) ? <TextColorFace color={text} /> : <FillColorFace color={text} />}
             submenu={<ColorPicker value={text} onChange={onChange} optional={optionalColor} />}
           />
         );
@@ -794,9 +811,33 @@ function FieldItem({
           />
         );
       }
+      if (kind === "textStyle") {
+        const style = (value ?? {}) as TextStyle;
+        // What the text looks like now: a choice, else the element's own look
+        // (Rubrik's older "Understruken" setting counts too).
+        const active = {
+          bold: style.bold ?? Boolean(field.metadata?.defaultBold),
+          italic: style.italic ?? false,
+          underline: style.underline ?? block?.props.decoration === "underline",
+        };
+        const toggle = (key: keyof TextStyle) => onChange({ ...style, [key]: !active[key] });
+        if (inToolbar) return <TextStyleButtons active={active} onToggle={toggle} />;
+        const on = TEXT_STYLE_BUTTONS.filter((b) => active[b.key]).map((b) => b.label.toLowerCase());
+        return (
+          <MenuItem
+            id={name}
+            label={label}
+            icon={<Icon><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" /></Icon>}
+            hint={on.length > 0 ? on.join(", ") : "Normal"}
+            submenu={TEXT_STYLE_BUTTONS.map((b) => (
+              <OptionRow key={b.key} label={b.label} selected={active[b.key]} onSelect={() => toggle(b.key)} />
+            ))}
+          />
+        );
+      }
       if (kind === "font") {
-        // "" follows the page: show the font that is actually used.
-        const inherited = inheritedFont(getPuck(), block?.id);
+        // "" follows the block or page: show the font that is actually used.
+        const inherited = inheritedFont(getPuck(), block?.id, name);
         const shown = text || inherited;
         const shownLabel = shown ? fontLabel(shown) : DEFAULT_FONT_NAME;
         return (
@@ -959,13 +1000,47 @@ function selectIcon(name: string, value: unknown): ReactNode {
 const DEFAULT_FONT_NAME = "Geist";
 
 /**
- * The font a block gets when it has none of its own: the page font that
- * older pages may still have set (headings for Rubrik), else "" (Geist).
+ * The font text gets when it has none of its own: for a part's font (e.g.
+ * the Hero's titleFont) the block's font, then the page font that older
+ * pages may still have set (headings for Rubrik), else "" (Geist).
  */
-function inheritedFont(puck: PuckApi, blockId: string | undefined) {
+function inheritedFont(puck: PuckApi, blockId: string | undefined, fieldName: string) {
   const root = puck.appState.data.root.props as { headingFont?: string; bodyFont?: string } | undefined;
-  const isHeading = blockId ? puck.getItemById(blockId)?.type === "Heading" : false;
-  return (isHeading && root?.headingFont) || root?.bodyFont || "";
+  const item = blockId ? puck.getItemById(blockId) : undefined;
+  const blockFont = fieldName !== "font" && typeof item?.props.font === "string" ? item.props.font : "";
+  const isHeading = item?.type === "Heading" || fieldName === "titleFont";
+  return blockFont || (isHeading && root?.headingFont) || root?.bodyFont || "";
+}
+
+const TEXT_STYLE_BUTTONS = [
+  { key: "bold", label: "Fetstil", icon: <path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" /> },
+  { key: "italic", label: "Kursiv", icon: <path d="M15 4h-5M14 20H9M14 4l-4 16" /> },
+  { key: "underline", label: "Understruken", icon: <path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14" /> },
+] as const;
+
+/** B / I / U as separate toggle buttons in the toolbar, like Canva. */
+function TextStyleButtons({
+  active,
+  onToggle,
+}: {
+  active: Record<keyof TextStyle, boolean>;
+  onToggle: (key: keyof TextStyle) => void;
+}) {
+  return TEXT_STYLE_BUTTONS.map(({ key, label, icon }) => (
+    <button
+      key={key}
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={active[key]}
+      onClick={() => onToggle(key)}
+      className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
+        active[key] ? "bg-violet-100 text-violet-900" : "text-zinc-800 hover:bg-zinc-100"
+      }`}
+    >
+      <Icon className="size-4.5">{icon}</Icon>
+    </button>
+  ));
 }
 
 /** Fonts shown in their own typeface, plus uploading a new one. */

@@ -5,6 +5,7 @@ import { type PageData, pageConfig } from "@/lib/page/config";
 import { type CustomFont, isFontValue, isValidFontName } from "@/lib/page/fonts";
 import { sanitizeBox } from "@/lib/page/box";
 import { sanitizeImageEdit } from "@/lib/page/image-edit";
+import { sanitizeTextStyle } from "@/lib/page/text-style";
 import { sanitizeTypography } from "@/lib/page/typography";
 import { isStoredFontUrl, isStoredImageUrl } from "@/lib/storage";
 
@@ -105,6 +106,7 @@ function sanitizeValue(field: Field, value: unknown, fallback: unknown, budget: 
       if (kind === "columnWidths") return sanitizeColumnWidths(value);
       if (kind === "font") return isFontValue(value) ? value : "";
       if (kind === "fontList") return sanitizeFontList(value);
+      if (kind === "textStyle") return sanitizeTextStyle(value);
       return fallback;
     default:
       // Field types this config doesn't use are dropped.
