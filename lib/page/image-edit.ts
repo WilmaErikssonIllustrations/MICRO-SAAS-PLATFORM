@@ -3,6 +3,10 @@ import type { CSSProperties } from "react";
 // Non-destructive image edits: stored as settings next to the image URL and
 // applied with CSS, so the original upload is kept and edits can be undone.
 // Shared by the editor, the published page and lib/page/sanitize.ts.
+//
+// The settings are the computer's. A tablet or phone can change any of them
+// for itself (`tablet` / `phone`: only what differs); everything it doesn't
+// change follows the computer.
 
 export const IMAGE_FILTERS = {
   none: { label: "Inget", css: "" },
@@ -29,7 +33,8 @@ export const IMAGE_RADII = {
   full: { label: "Rund", css: "9999px" },
 } as const;
 
-export type ImageEdit = {
+/** One device's image settings. */
+export type ImageSettings = {
   brightness: number;
   contrast: number;
   saturation: number;
@@ -40,19 +45,21 @@ export type ImageEdit = {
   aspect: keyof typeof IMAGE_ASPECTS;
   focusX: number;
   focusY: number;
-  /** Its own focus point on phones (below 640 px), instead of focusX/Y. */
-  mobileFocus: boolean;
-  mobileFocusX: number;
-  mobileFocusY: number;
-  /** Its own focus point on tablets (640 to 1024 px), instead of focusX/Y. */
-  tabletFocus: boolean;
-  tabletFocusX: number;
-  tabletFocusY: number;
   zoom: number;
   radius: keyof typeof IMAGE_RADII;
 };
 
-export const DEFAULT_IMAGE_EDIT: ImageEdit = {
+/** The computer's settings, plus what a tablet or phone changes for itself. */
+export type ImageEdit = ImageSettings & {
+  tablet?: Partial<ImageSettings>;
+  phone?: Partial<ImageSettings>;
+};
+
+export type ImageDevice = "desktop" | "tablet" | "phone";
+type OtherDevice = Exclude<ImageDevice, "desktop">;
+const OTHER_DEVICES: OtherDevice[] = ["tablet", "phone"];
+
+export const DEFAULT_IMAGE_SETTINGS: ImageSettings = {
   brightness: 100,
   contrast: 100,
   saturation: 100,
@@ -63,15 +70,11 @@ export const DEFAULT_IMAGE_EDIT: ImageEdit = {
   aspect: "original",
   focusX: 50,
   focusY: 50,
-  mobileFocus: false,
-  mobileFocusX: 50,
-  mobileFocusY: 50,
-  tabletFocus: false,
-  tabletFocusX: 50,
-  tabletFocusY: 50,
   zoom: 100,
   radius: "sm",
 };
+
+export const DEFAULT_IMAGE_EDIT: ImageEdit = DEFAULT_IMAGE_SETTINGS;
 
 /** Slider ranges, in percent (blur in px). */
 export const IMAGE_RANGES = {
@@ -81,119 +84,189 @@ export const IMAGE_RANGES = {
   blur: { min: 0, max: 10 },
   focusX: { min: 0, max: 100 },
   focusY: { min: 0, max: 100 },
-  mobileFocusX: { min: 0, max: 100 },
-  mobileFocusY: { min: 0, max: 100 },
-  tabletFocusX: { min: 0, max: 100 },
-  tabletFocusY: { min: 0, max: 100 },
   zoom: { min: 100, max: 300 },
 } as const;
 
+/** Pages saved with the earlier phone/tablet-only focus point. */
+type LegacyFocus = {
+  mobileFocus?: boolean;
+  mobileFocusX?: number;
+  mobileFocusY?: number;
+  tabletFocus?: boolean;
+  tabletFocusX?: number;
+  tabletFocusY?: number;
+};
+
 /** Fills in defaults for pages saved before a setting existed. */
 export function withImageDefaults(edit: Partial<ImageEdit> | undefined): ImageEdit {
-  return { ...DEFAULT_IMAGE_EDIT, ...edit };
+  const {
+    mobileFocus,
+    mobileFocusX,
+    mobileFocusY,
+    tabletFocus,
+    tabletFocusX,
+    tabletFocusY,
+    ...rest
+  } = (edit ?? {}) as Partial<ImageEdit> & LegacyFocus;
+  const result: ImageEdit = { ...DEFAULT_IMAGE_SETTINGS, ...rest };
+  // The earlier own focus points become the devices' own settings.
+  if (tabletFocus && !result.tablet) result.tablet = { focusX: tabletFocusX ?? 50, focusY: tabletFocusY ?? 50 };
+  if (mobileFocus && !result.phone) result.phone = { focusX: mobileFocusX ?? 50, focusY: mobileFocusY ?? 50 };
+  return result;
 }
 
-/** CSS for the <img> element. */
-export function imageEditStyle(value: Partial<ImageEdit> | undefined): CSSProperties {
+/** The settings a device uses: its own changes over the computer's. */
+export function deviceSettings(value: Partial<ImageEdit> | undefined, device: ImageDevice): ImageSettings {
+  const { tablet, phone, ...base } = withImageDefaults(value);
+  const own = device === "tablet" ? tablet : device === "phone" ? phone : undefined;
+  return { ...base, ...own };
+}
+
+/** Whether a tablet or phone has settings of its own. */
+export function hasDeviceSettings(value: Partial<ImageEdit> | undefined, device: ImageDevice) {
+  if (device === "desktop") return false;
+  const own = withImageDefaults(value)[device];
+  return Boolean(own && Object.keys(own).length > 0);
+}
+
+/** The edit after changing settings for one device (the computer's, or a tablet's or phone's own). */
+export function changeForDevice(value: Partial<ImageEdit> | undefined, device: ImageDevice, patch: Partial<ImageSettings>): ImageEdit {
   const edit = withImageDefaults(value);
+  if (device === "desktop") return { ...edit, ...patch };
+  return { ...edit, [device]: { ...edit[device], ...patch } };
+}
+
+/** The edit after a device's settings go back to the default: the computer's, or following the computer. */
+export function resetDevice(value: Partial<ImageEdit> | undefined, device: ImageDevice): ImageEdit {
+  const edit = withImageDefaults(value);
+  if (device === "desktop") return { ...edit, ...DEFAULT_IMAGE_SETTINGS };
+  const rest = { ...edit };
+  delete rest[device];
+  return rest;
+}
+
+/** filter, transform and position for one device's settings. */
+function imageCss(settings: ImageSettings) {
   const filter = [
-    IMAGE_FILTERS[edit.filter].css,
-    edit.brightness !== 100 && `brightness(${edit.brightness / 100})`,
-    edit.contrast !== 100 && `contrast(${edit.contrast / 100})`,
-    edit.saturation !== 100 && `saturate(${edit.saturation / 100})`,
-    edit.blur > 0 && `blur(${edit.blur}px)`,
+    IMAGE_FILTERS[settings.filter].css,
+    settings.brightness !== 100 && `brightness(${settings.brightness / 100})`,
+    settings.contrast !== 100 && `contrast(${settings.contrast / 100})`,
+    settings.saturation !== 100 && `saturate(${settings.saturation / 100})`,
+    settings.blur > 0 && `blur(${settings.blur}px)`,
   ]
     .filter(Boolean)
     .join(" ");
-  const zoom = edit.zoom / 100;
+  const zoom = settings.zoom / 100;
   const transform = [
-    (edit.flipX || edit.flipY) && `scale(${edit.flipX ? -1 : 1}, ${edit.flipY ? -1 : 1})`,
+    (settings.flipX || settings.flipY) && `scale(${settings.flipX ? -1 : 1}, ${settings.flipY ? -1 : 1})`,
     zoom !== 1 && `scale(${zoom})`,
   ]
     .filter(Boolean)
     .join(" ");
-
-  return {
-    filter: filter || undefined,
-    transform: transform || undefined,
-    transformOrigin: `${edit.focusX}% ${edit.focusY}%`,
-    objectPosition: `${edit.focusX}% ${edit.focusY}%`,
-    // Read by DEVICE_FOCUS_CSS on phones and tablets.
-    ...(edit.mobileFocus && { "--mobile-focus": `${edit.mobileFocusX}% ${edit.mobileFocusY}%` }),
-    ...(edit.tabletFocus && { "--tablet-focus": `${edit.tabletFocusX}% ${edit.tabletFocusY}%` }),
-  } as CSSProperties;
+  const position = `${settings.focusX}% ${settings.focusY}%`;
+  return { filter, transform, position };
 }
+
+const cropped = (settings: ImageSettings) => settings.aspect !== "original";
 
 /**
- * Puts images with their own phone or tablet focus point (--mobile-focus,
- * --tablet-focus, from imageEditStyle) on it: phones below 640 px
- * (Tailwind's `sm`, where the Hero switches to its phone layout), tablets
- * from 640 up to 1024 px (`lg`). !important to win over the inline
- * desktop position. Added to every page by SiteRoot.
+ * CSS for the <img> element: the computer's settings inline, and each
+ * tablet's or phone's own as variables that DEVICE_IMAGE_CSS applies at
+ * its width. `sizedByFormat`: the image is h-full when cropped to a format,
+ * else h-auto (Bild), so a device's own format sets its height too.
  */
-export const DEVICE_FOCUS_CSS = [
-  '@media not all and (min-width:40rem){img[style*="--mobile-focus"]{object-position:var(--mobile-focus)!important;transform-origin:var(--mobile-focus)!important}}',
-  '@media (min-width:40rem) and (not (min-width:64rem)){img[style*="--tablet-focus"]{object-position:var(--tablet-focus)!important;transform-origin:var(--tablet-focus)!important}}',
-].join("\n");
-
-export type FocusDevice = "desktop" | "tablet" | "phone";
-
-const DEVICE_FOCUS_KEYS = {
-  tablet: { own: "tabletFocus", x: "tabletFocusX", y: "tabletFocusY" },
-  phone: { own: "mobileFocus", x: "mobileFocusX", y: "mobileFocusY" },
-} as const;
-
-/** The focus point a device uses: its own, or the computer's. */
-export function deviceFocus(edit: ImageEdit, device: FocusDevice) {
-  if (device === "desktop") return { x: edit.focusX, y: edit.focusY, own: true };
-  const keys = DEVICE_FOCUS_KEYS[device];
-  return edit[keys.own] ? { x: edit[keys.x], y: edit[keys.y], own: true } : { x: edit.focusX, y: edit.focusY, own: false };
+export function imageEditStyle(value: Partial<ImageEdit> | undefined, sizedByFormat = false): CSSProperties {
+  const edit = withImageDefaults(value);
+  const css = imageCss(edit);
+  const style: Record<string, string | undefined> = {
+    filter: css.filter || undefined,
+    transform: css.transform || undefined,
+    transformOrigin: css.position,
+    objectPosition: css.position,
+  };
+  for (const device of OTHER_DEVICES) {
+    if (!hasDeviceSettings(edit, device)) continue;
+    const settings = deviceSettings(edit, device);
+    const own = imageCss(settings);
+    style[`--${device}-img-filter`] = own.filter || "none";
+    style[`--${device}-img-transform`] = own.transform || "none";
+    style[`--${device}-img-position`] = own.position;
+    if (sizedByFormat) style[`--${device}-img-height`] = cropped(settings) ? "100%" : "auto";
+  }
+  return style as CSSProperties;
 }
 
-/** The change that gives a device this focus point (its own, for a tablet or phone). */
-export function setDeviceFocus(device: FocusDevice, x: number, y: number): Partial<ImageEdit> {
-  if (device === "desktop") return { focusX: x, focusY: y };
-  const keys = DEVICE_FOCUS_KEYS[device];
-  return { [keys.own]: true, [keys.x]: x, [keys.y]: y };
-}
-
-/** The change that makes a tablet or phone follow the computer's focus point again. */
-export function followDesktopFocus(device: Exclude<FocusDevice, "desktop">): Partial<ImageEdit> {
-  return { [DEVICE_FOCUS_KEYS[device].own]: false };
-}
-
-/** CSS for the box around the image: crop format and corners. */
+/** CSS for the box around the image: crop format and corners (a tablet's or phone's own as variables). */
 export function imageFrameStyle(value: Partial<ImageEdit> | undefined): CSSProperties {
   const edit = withImageDefaults(value);
-  return {
+  const style: Record<string, string | undefined> = {
     aspectRatio: IMAGE_ASPECTS[edit.aspect].ratio,
     borderRadius: IMAGE_RADII[edit.radius].css,
   };
+  for (const device of OTHER_DEVICES) {
+    if (!hasDeviceSettings(edit, device)) continue;
+    const settings = deviceSettings(edit, device);
+    style[`--${device}-frame-aspect`] = IMAGE_ASPECTS[settings.aspect].ratio ?? "auto";
+    style[`--${device}-frame-radius`] = IMAGE_RADII[settings.radius].css;
+  }
+  return style as CSSProperties;
 }
 
-/** Keeps only known settings with valid values; anything else gets the default. */
-export function sanitizeImageEdit(value: unknown): ImageEdit {
-  const input = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
-  const edit = { ...DEFAULT_IMAGE_EDIT };
+/** Where each device's own settings apply: phones below 640 px (`sm`, where the Hero switches to its phone layout), tablets up to 1024 px (`lg`). */
+const DEVICE_MEDIA: Record<OtherDevice, string> = {
+  phone: "not all and (min-width:40rem)",
+  tablet: "(min-width:40rem) and (not (min-width:64rem))",
+};
 
+/**
+ * Applies a tablet's or phone's own settings (the variables from
+ * imageEditStyle / imageFrameStyle) at its width. !important to win over
+ * the computer's inline styles. Added to every page by SiteRoot.
+ */
+export const DEVICE_IMAGE_CSS = OTHER_DEVICES.map((device) => {
+  const v = (name: string) => `var(--${device}-${name})!important`;
+  return (
+    `@media ${DEVICE_MEDIA[device]}{` +
+    `img[style*="--${device}-img-filter"]{filter:${v("img-filter")};transform:${v("img-transform")};` +
+    `transform-origin:${v("img-position")};object-position:${v("img-position")}}` +
+    `img[style*="--${device}-img-height"]{height:${v("img-height")}}` +
+    `[style*="--${device}-frame-aspect"]{aspect-ratio:${v("frame-aspect")};border-radius:${v("frame-radius")}}` +
+    "}"
+  );
+}).join("\n");
+
+/** Keeps known settings with valid values; `partial` keeps only those given (a device's own). */
+function sanitizeSettings(input: Record<string, unknown>, partial: boolean): Partial<ImageSettings> {
+  const settings: Partial<ImageSettings> = partial ? {} : { ...DEFAULT_IMAGE_SETTINGS };
   for (const [key, range] of Object.entries(IMAGE_RANGES) as [keyof typeof IMAGE_RANGES, { min: number; max: number }][]) {
     const number = input[key];
     if (typeof number === "number" && Number.isFinite(number)) {
-      edit[key] = Math.min(range.max, Math.max(range.min, Math.round(number)));
+      settings[key] = Math.min(range.max, Math.max(range.min, Math.round(number)));
     }
   }
-  if (typeof input.flipX === "boolean") edit.flipX = input.flipX;
-  if (typeof input.flipY === "boolean") edit.flipY = input.flipY;
-  if (typeof input.mobileFocus === "boolean") edit.mobileFocus = input.mobileFocus;
-  if (typeof input.tabletFocus === "boolean") edit.tabletFocus = input.tabletFocus;
+  if (typeof input.flipX === "boolean") settings.flipX = input.flipX;
+  if (typeof input.flipY === "boolean") settings.flipY = input.flipY;
   if (typeof input.filter === "string" && Object.hasOwn(IMAGE_FILTERS, input.filter)) {
-    edit.filter = input.filter as ImageEdit["filter"];
+    settings.filter = input.filter as ImageSettings["filter"];
   }
   if (typeof input.aspect === "string" && Object.hasOwn(IMAGE_ASPECTS, input.aspect)) {
-    edit.aspect = input.aspect as ImageEdit["aspect"];
+    settings.aspect = input.aspect as ImageSettings["aspect"];
   }
   if (typeof input.radius === "string" && Object.hasOwn(IMAGE_RADII, input.radius)) {
-    edit.radius = input.radius as ImageEdit["radius"];
+    settings.radius = input.radius as ImageSettings["radius"];
+  }
+  return settings;
+}
+
+const asRecord = (value: unknown) => (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+
+/** Keeps only known settings with valid values; anything else gets the default. */
+export function sanitizeImageEdit(value: unknown): ImageEdit {
+  const input = withImageDefaults(asRecord(value) as Partial<ImageEdit>) as unknown as Record<string, unknown>;
+  const edit = sanitizeSettings(input, false) as ImageEdit;
+  for (const device of OTHER_DEVICES) {
+    const own = sanitizeSettings(asRecord(input[device]), true);
+    if (Object.keys(own).length > 0) edit[device] = own;
   }
   return edit;
 }

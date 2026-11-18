@@ -7,18 +7,19 @@ import { updateBlockProps } from "@/components/page-blocks/update-block";
 import type { PageConfig } from "@/lib/page/config";
 import { fontCss, GOOGLE_FONTS } from "@/lib/page/fonts";
 import {
-  DEFAULT_IMAGE_EDIT,
-  deviceFocus,
-  type FocusDevice,
-  followDesktopFocus,
+  changeForDevice,
+  deviceSettings,
+  hasDeviceSettings,
   IMAGE_ASPECTS,
   IMAGE_FILTERS,
   IMAGE_RADII,
   IMAGE_RANGES,
+  type ImageDevice,
   type ImageEdit,
   imageEditStyle,
   imageFrameStyle,
-  setDeviceFocus,
+  type ImageSettings,
+  resetDevice,
   withImageDefaults,
 } from "@/lib/page/image-edit";
 
@@ -59,11 +60,12 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   const getPuck = useGetPuck();
   const item = usePuck((s) => s.getItemById(target.blockId));
   const [tab, setTab] = useState<Tab>("adjust");
-  // The preview as on a computer, a tablet or a phone (the switch above it);
-  // the focus point controls are for that device.
+  // The preview as on a computer, a tablet or a phone (the switch above it).
+  // Every control shows and changes that device's settings.
   const [device, setDevice] = useState<Device>("desktop");
   const src = item?.props[target.imageProp as keyof typeof item.props];
-  const edit = withImageDefaults(item?.props[target.editProp as keyof typeof item.props] as Partial<ImageEdit>);
+  const stored = withImageDefaults(item?.props[target.editProp as keyof typeof item.props] as Partial<ImageEdit>);
+  const edit = deviceSettings(stored, device);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && onClose();
@@ -74,8 +76,9 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   if (!item || typeof src !== "string" || !src) return null;
 
   // Every change goes straight to the page, so the canvas and undo follow.
-  const change = (patch: Partial<ImageEdit>) =>
-    updateBlockProps(getPuck(), target.blockId, { [target.editProp]: { ...edit, ...patch } });
+  // On a tablet or phone it's that device's own change.
+  const save = (next: ImageEdit) => updateBlockProps(getPuck(), target.blockId, { [target.editProp]: next });
+  const change = (patch: Partial<ImageSettings>) => save(changeForDevice(stored, device, patch));
 
   const tabs = (Object.keys(TABS) as Tab[]).filter((key) => !(target.background && key === "shape"));
 
@@ -111,9 +114,9 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
               edit={edit}
               background={target.background}
               device={device === "desktop" ? null : deviceFrame(device, item, target.background)}
-              // A click picks the position for the device shown (its own,
-              // for a tablet or phone).
-              onFocus={(x, y) => change(setDeviceFocus(device, x, y))}
+              ownSettings={hasDeviceSettings(stored, device)}
+              // A click picks the position for the device shown.
+              onFocus={(x, y) => change({ focusX: x, focusY: y })}
               showFocus={tab === "crop"}
             />
           </div>
@@ -145,6 +148,13 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 text-sm">
+            {device !== "desktop" && (
+              <DeviceNotice
+                name={DEVICES[device].toLowerCase()}
+                own={hasDeviceSettings(stored, device)}
+                onFollow={() => save(resetDevice(stored, device))}
+              />
+            )}
             {tab === "adjust" &&
               SLIDERS.map(({ key, label }) => (
                 <Slider
@@ -159,7 +169,7 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
 
             {tab === "filter" && (
               <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(IMAGE_FILTERS) as ImageEdit["filter"][]).map((filter) => (
+                {(Object.keys(IMAGE_FILTERS) as ImageSettings["filter"][]).map((filter) => (
                   <button
                     key={filter}
                     type="button"
@@ -185,7 +195,9 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
                   />
                 )}
                 <Slider label="Zoom" value={edit.zoom} {...IMAGE_RANGES.zoom} unit=" %" onChange={(zoom) => change({ zoom })} />
-                <FocusControls edit={edit} device={device} onChange={change} />
+                <p className="text-xs text-zinc-500">Klicka i bilden för att välja vad som ska synas i mitten.</p>
+                <Slider label="Fokus vågrätt" value={edit.focusX} {...IMAGE_RANGES.focusX} unit=" %" onChange={(focusX) => change({ focusX })} />
+                <Slider label="Fokus lodrätt" value={edit.focusY} {...IMAGE_RANGES.focusY} unit=" %" onChange={(focusY) => change({ focusY })} />
                 <div className="grid grid-cols-2 gap-2">
                   <Toggle label="Spegla vågrätt" active={edit.flipX} onClick={() => change({ flipX: !edit.flipX })} />
                   <Toggle label="Spegla lodrätt" active={edit.flipY} onClick={() => change({ flipY: !edit.flipY })} />
@@ -201,7 +213,9 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
           <div className="flex gap-2 border-t border-zinc-200 px-5 py-4">
             <button
               type="button"
-              onClick={() => change(DEFAULT_IMAGE_EDIT)}
+              // The device shown: the computer's settings, or a tablet's or
+              // phone's own (it then follows the computer again).
+              onClick={() => save(resetDevice(stored, device))}
               className="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-semibold hover:bg-zinc-50"
             >
               Återställ
@@ -220,63 +234,22 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   );
 }
 
-const DEVICES = { desktop: "Dator", tablet: "Surfplatta", phone: "Mobil" } as const satisfies Record<FocusDevice, string>;
-type Device = FocusDevice;
+const DEVICES = { desktop: "Dator", tablet: "Surfplatta", phone: "Mobil" } as const satisfies Record<ImageDevice, string>;
+type Device = ImageDevice;
 
-/**
- * The focus point for the device in the switch. A tablet or phone follows
- * the computer until its position is changed; then it has its own, which
- * can be dropped again.
- */
-function FocusControls({
-  edit,
-  device,
-  onChange,
-}: {
-  edit: ImageEdit;
-  device: Device;
-  onChange: (patch: Partial<ImageEdit>) => void;
-}) {
-  const focus = deviceFocus(edit, device);
-  const name = DEVICES[device].toLowerCase();
-  const suffix = device === "desktop" ? "" : ` (${name})`;
-  return (
-    <>
-      <p className="text-xs text-zinc-500">
-        Klicka i bilden för att välja vad som ska synas i mitten{device === "desktop" ? "." : ` på ${name}.`}
-      </p>
-      <Slider
-        label={`Fokus vågrätt${suffix}`}
-        value={focus.x}
-        {...IMAGE_RANGES.focusX}
-        unit=" %"
-        onChange={(x) => onChange(setDeviceFocus(device, x, focus.y))}
-      />
-      <Slider
-        label={`Fokus lodrätt${suffix}`}
-        value={focus.y}
-        {...IMAGE_RANGES.focusY}
-        unit=" %"
-        onChange={(y) => onChange(setDeviceFocus(device, focus.x, y))}
-      />
-      {device !== "desktop" &&
-        (focus.own ? (
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-900">
-            Egen position för {name}.
-            <button
-              type="button"
-              onClick={() => onChange(followDesktopFocus(device))}
-              className="font-semibold underline hover:no-underline"
-            >
-              Följ datorn
-            </button>
-          </div>
-        ) : (
-          <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-            Följer datorns position tills du ändrar den här.
-          </p>
-        ))}
-    </>
+/** Whether a tablet or phone follows the computer or has its own settings, and a way back. */
+function DeviceNotice({ name, own, onFollow }: { name: string; own: boolean; onFollow: () => void }) {
+  return own ? (
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-900">
+      <span>Egna inställningar för {name}. Ändringar här gäller bara {name}.</span>
+      <button type="button" onClick={onFollow} className="shrink-0 font-semibold underline hover:no-underline">
+        Följ datorn
+      </button>
+    </div>
+  ) : (
+    <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+      Följer datorn. Det du ändrar här gäller bara {name}.
+    </p>
   );
 }
 
@@ -319,14 +292,18 @@ function Preview({
   edit,
   background,
   device,
+  ownSettings,
   showFocus,
   onFocus,
 }: {
   src: string;
-  edit: ImageEdit;
+  /** The settings of the device shown. */
+  edit: ImageSettings;
   background: boolean;
-  /** Show it as on a tablet or phone (a phone with its own focus point). */
+  /** Show it as on a tablet or phone. */
   device: DeviceFrame | null;
+  /** The tablet or phone shown has settings of its own (a violet focus point). */
+  ownSettings: boolean;
   showFocus: boolean;
   onFocus: (x: number, y: number) => void;
 }) {
@@ -338,10 +315,6 @@ function Preview({
   const cropped = device
     ? Boolean(device.aspectRatio) || (!background && edit.aspect !== "original")
     : background || edit.aspect !== "original";
-  // The device's focus point: its own, if it has one, else the computer's.
-  const focus = deviceFocus(edit, device?.kind ?? "desktop");
-  const shown = { ...edit, focusX: focus.x, focusY: focus.y, mobileFocus: false, tabletFocus: false };
-  const ownFocus = Boolean(device) && focus.own;
   return (
     <div
       style={frame}
@@ -357,14 +330,14 @@ function Preview({
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- user uploads on S3 */}
-      <img src={src} alt="" style={imageEditStyle(shown)} className={`block w-full object-cover ${cropped ? "h-full" : "h-auto"}`} />
+      <img src={src} alt="" style={imageEditStyle(edit)} className={`block w-full object-cover ${cropped ? "h-full" : "h-auto"}`} />
       {showFocus && (
         <span
           aria-hidden
           className={`pointer-events-none absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${
-            ownFocus ? "bg-violet-600" : ""
+            device && ownSettings ? "bg-violet-600" : ""
           }`}
-          style={{ left: `${shown.focusX}%`, top: `${shown.focusY}%` }}
+          style={{ left: `${edit.focusX}%`, top: `${edit.focusY}%` }}
         />
       )}
     </div>
