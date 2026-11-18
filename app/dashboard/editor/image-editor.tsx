@@ -55,7 +55,7 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   const getPuck = useGetPuck();
   const item = usePuck((s) => s.getItemById(target.blockId));
   const [tab, setTab] = useState<Tab>("adjust");
-  // With its own phone position, the preview can show the image as on a phone.
+  // The preview as on a computer or on a phone (Dator / Mobil above it).
   const [phonePreview, setPhonePreview] = useState(false);
   const src = item?.props[target.imageProp as keyof typeof item.props];
   const edit = withImageDefaults(item?.props[target.editProp as keyof typeof item.props] as Partial<ImageEdit>);
@@ -85,31 +85,30 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
       <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl md:flex-row">
         <div className="flex min-h-64 flex-1 items-center justify-center bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-size-[20px_20px] p-6">
           <div className="flex w-full flex-col items-center gap-3">
-            {edit.mobileFocus && (
-              <div role="tablist" aria-label="Förhandsvisning" className="flex gap-1 rounded-lg bg-white/90 p-1 text-sm shadow-sm">
-                {([false, true] as const).map((phone) => (
-                  <button
-                    key={String(phone)}
-                    type="button"
-                    role="tab"
-                    aria-selected={phonePreview === phone}
-                    onClick={() => setPhonePreview(phone)}
-                    className={`rounded-md px-3 py-1 font-medium ${
-                      phonePreview === phone ? "bg-violet-600 text-white" : "text-zinc-600 hover:text-zinc-900"
-                    }`}
-                  >
-                    {phone ? "Mobil" : "Dator"}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div role="tablist" aria-label="Förhandsvisning" className="flex gap-1 rounded-lg bg-white/90 p-1 text-sm shadow-sm">
+              {([false, true] as const).map((phone) => (
+                <button
+                  key={String(phone)}
+                  type="button"
+                  role="tab"
+                  aria-selected={phonePreview === phone}
+                  onClick={() => setPhonePreview(phone)}
+                  className={`rounded-md px-3 py-1 font-medium ${
+                    phonePreview === phone ? "bg-violet-600 text-white" : "text-zinc-600 hover:text-zinc-900"
+                  }`}
+                >
+                  {phone ? "Mobil" : "Dator"}
+                </button>
+              ))}
+            </div>
             <Preview
               src={src}
               edit={edit}
               background={target.background}
-              phone={edit.mobileFocus && phonePreview ? phoneFrame(item, target.background) : null}
+              phone={phonePreview ? phoneFrame(item, target.background) : null}
               onFocus={(x, y) =>
-                change(edit.mobileFocus && phonePreview ? { mobileFocusX: x, mobileFocusY: y } : { focusX: x, focusY: y })
+                // A click in the phone view picks the phone's own position.
+                change(phonePreview ? { mobileFocus: true, mobileFocusX: x, mobileFocusY: y } : { focusX: x, focusY: y })
               }
               showFocus={tab === "crop"}
             />
@@ -195,13 +194,13 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
                         ? { mobileFocus: false }
                         : { mobileFocus: true, mobileFocusX: edit.focusX, mobileFocusY: edit.focusY },
                     );
-                    setPhonePreview(!edit.mobileFocus);
+                    if (!edit.mobileFocus) setPhonePreview(true);
                   }}
                 />
                 {edit.mobileFocus && (
                   <>
                     <p className="text-xs text-zinc-500">
-                      Gäller bara på mobil. Förhandsvisningen under Mobil visar bilden som på en telefon; klicka i den för
+                      Gäller bara på mobil. Under Mobil ovanför bilden ser du den som på en telefon; klicka i den för
                       att välja mobilens mitt.
                     </p>
                     <Slider
@@ -290,8 +289,11 @@ function Preview({
       ? { aspectRatio: "16 / 9" }
       : imageFrameStyle(edit);
   const cropped = phone ? phoneCropped : background || edit.aspect !== "original";
-  // On a phone the phone focus point is the one in use.
-  const shown = phone ? { ...edit, focusX: edit.mobileFocusX, focusY: edit.mobileFocusY, mobileFocus: false } : edit;
+  // On a phone its own focus point is the one in use, if it has one.
+  const shown =
+    phone && edit.mobileFocus
+      ? { ...edit, focusX: edit.mobileFocusX, focusY: edit.mobileFocusY, mobileFocus: false }
+      : { ...edit, mobileFocus: false };
   return (
     <div
       style={frame}
@@ -312,7 +314,7 @@ function Preview({
         <span
           aria-hidden
           className={`pointer-events-none absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${
-            phone ? "bg-violet-600" : ""
+            phone && edit.mobileFocus ? "bg-violet-600" : ""
           }`}
           style={{ left: `${shown.focusX}%`, top: `${shown.focusY}%` }}
         />
