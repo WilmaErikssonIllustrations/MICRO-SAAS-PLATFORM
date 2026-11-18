@@ -16,7 +16,7 @@
     "@prisma/client": "^7.10.1",
     "@puckeditor/core": "^0.23.0",
     "better-auth": "^1.7.11",
-    "next": "16.4.2",
+    "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "sanitize-html": "^2.18.1",
@@ -30,7 +30,7 @@
     "@types/sanitize-html": "^2.16.2",
     "dotenv": "^18.0.8",
     "eslint": "^9",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "16.4.6",
     "prisma": "^7.10.1",
     "tailwindcss": "^4",
     "typescript": "^5"
