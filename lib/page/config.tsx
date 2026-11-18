@@ -372,12 +372,15 @@ export const pageConfig: PageConfig = {
           metadata: { group: "heroBackground" },
           type: "radio",
           label: "Bakgrund",
+          // Hidden: the background is picked with Bakgrundsfärg. Without a
+          // color, heroes stay as they were (dark unless set to light).
+          visible: false,
           options: [
             { label: "Ljus", value: "light" },
             { label: "Mörk", value: "dark" },
           ],
         },
-        backgroundColor: inGroup(colorField("Egen bakgrundsfärg"), "heroBackground"),
+        backgroundColor: inGroup(colorField("Bakgrundsfärg"), "heroBackground"),
         align: alignField,
         // Hidden: text is styled per part (title, subtitle, button). Pages
         // that set these before keep them, under the parts' own settings.
