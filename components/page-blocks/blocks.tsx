@@ -338,10 +338,8 @@ export function Hero({
       className={`group relative isolate overflow-hidden ${heroPhoneLayout[phone].section} ${
         heroDesktopLayout[desktop].section
       } ${sectionHeight} ${
-        image
-          ? // Without a dark tint, a soft shadow keeps the white text readable.
-            `bg-zinc-900 text-white ${overlay === "dark" ? "" : "[text-shadow:0_1px_12px_rgb(0_0_0/0.45)]"}`
-          : heroBackground[shade]
+        // No automatic text shadow: it's a choice under Effekter.
+        image ? "bg-zinc-900 text-white" : heroBackground[shade]
       }`}
     >
       <FontImport font={font} />
