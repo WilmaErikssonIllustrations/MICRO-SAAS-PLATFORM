@@ -101,9 +101,11 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
       dictionary={svDictionary}
       plugins={sideRailPlugins}
       viewports={viewports}
-      // Start with the canvas wide open; the plus adds blocks from a dropdown.
+      // Start with the canvas wide open; the plus adds blocks from a dropdown,
+      // and the gear in the left rail shows the settings panel on the right.
       ui={{
         leftSideBarVisible: false,
+        rightSideBarVisible: false,
         plugin: { current: "outline" },
         leftSideBarWidth: 280,
         rightSideBarWidth: 300,

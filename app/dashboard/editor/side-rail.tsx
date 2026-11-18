@@ -1,11 +1,13 @@
 "use client";
 
-import { blocksPlugin, outlinePlugin, type Plugin, useGetPuck } from "@puckeditor/core";
+import { blocksPlugin, createUsePuck, outlinePlugin, type Plugin, useGetPuck } from "@puckeditor/core";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { pageConfig } from "@/lib/page/config";
+import { type PageConfig, pageConfig } from "@/lib/page/config";
 import { addBlock, BLOCKS, BlockIcon } from "./block-tile";
 import { LayersPanel } from "./layers-panel";
+
+const usePuck = createUsePuck<PageConfig>();
 
 // The icons in Puck's left rail, without text labels (names show as
 // tooltips). The "blocks" item becomes a plus that opens a dropdown of
@@ -28,7 +30,39 @@ export const sideRailPlugins: Plugin[] = [
       </span>
     ),
   },
+  // Not a panel of its own: the gear shows or hides the settings panel on
+  // the right (hidden from the start; the right-click menu covers the same
+  // settings). Puck only shows rail items that have a panel, so it gets an
+  // empty one that never opens. Desktop only: on mobile Puck adds its own
+  // settings item to the rail. (desktopOnly is read by Puck but missing
+  // from its Plugin type.)
+  { name: "settings", label: "", icon: <SettingsButton />, render: () => <></>, desktopOnly: true } as Plugin,
 ];
+
+function SettingsButton() {
+  const getPuck = useGetPuck();
+  const visible = usePuck((s) => s.appState.ui.rightSideBarVisible);
+  return (
+    <span
+      title={visible ? "Dölj inställningar" : "Visa inställningar"}
+      role="button"
+      aria-pressed={visible}
+      // Takes clicks on the whole rail item, like the plus (editor-theme.css).
+      className={`rail-trigger flex size-full items-center justify-center rounded-lg ${
+        visible ? "bg-violet-100 text-violet-800" : ""
+      }`}
+      onClick={(event) => {
+        event.stopPropagation();
+        getPuck().dispatch({ type: "setUi", ui: { rightSideBarVisible: !visible } });
+      }}
+    >
+      <RailIcon>
+        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+        <circle cx="12" cy="12" r="3" />
+      </RailIcon>
+    </span>
+  );
+}
 
 function AddBlockButton() {
   const getPuck = useGetPuck();
@@ -71,7 +105,7 @@ function AddBlockButton() {
       title="Lägg till block"
       // The ::after covers the whole rail item, so every click lands here
       // instead of opening Puck's side panel (see editor-theme.css).
-      className="add-block-trigger block size-full"
+      className="rail-trigger block size-full"
       onClick={(event) => {
         event.stopPropagation();
         toggle();

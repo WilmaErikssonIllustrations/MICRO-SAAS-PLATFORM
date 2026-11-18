@@ -35,11 +35,14 @@ html body {
   color: #171717;
 }
 
-/* The plus in the left rail takes clicks on the whole item (side-rail.tsx). */
-[class*="_NavItem-link_"]:has(.add-block-trigger) {
+/*
+  The plus and the gear in the left rail take clicks on the whole item, so
+  Puck doesn't open a left panel for them (side-rail.tsx).
+*/
+[class*="_NavItem-link_"]:has(.rail-trigger) {
   position: relative;
 }
-.add-block-trigger::after {
+.rail-trigger::after {
   content: "";
   position: absolute;
   inset: 0;
