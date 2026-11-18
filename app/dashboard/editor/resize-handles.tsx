@@ -9,6 +9,7 @@ import { updateBlockProps } from "@/components/page-blocks/update-block";
 import { withBoxDefaults } from "@/lib/page/box";
 import type { PageConfig } from "@/lib/page/config";
 import { TYPOGRAPHY_RANGES, withTypographyDefaults } from "@/lib/page/typography";
+import { useActivePart } from "./active-part";
 
 const usePuck = createUsePuck<PageConfig>();
 
@@ -16,7 +17,8 @@ const usePuck = createUsePuck<PageConfig>();
 // iframe. What a drag changes depends on the block:
 //   width   - Bild: the image width in pixels (left/right edges)
 //   height  - Mellanrum: the height in pixels (bottom edge)
-//   text    - Hero, Rubrik, Text, Knapp: the text size (corner)
+//   text    - Hero, Rubrik, Text, Knapp: the text size (corner); on the
+//             Hero, of the clicked part (title, subtitle, button)
 //   columns - Kolumner: the widths of two neighboring columns (dividers)
 //   box     - Sektion: only its background box (below)
 // Blocks mark the element to put handles on with `data-resize-box`.
@@ -51,7 +53,9 @@ type Box = Rect & {
 };
 
 type Handle =
-  | { kind: "left" | "right" | "bottom" | "corner" | "boxHeight" }
+  | { kind: "left" | "right" | "bottom" | "boxHeight" }
+  /** `prop` is the typography prop the drag changes, e.g. the Hero's titleTypography. */
+  | { kind: "corner"; prop: string }
   | { kind: "boxWidth"; side: "left" | "right" }
   | { kind: "sectionHeight"; prop: string; unitProp: string }
   | { kind: "divider"; index: number };
@@ -64,6 +68,13 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
   const selected = usePuck((s) => s.selectedItem);
   const id = selected?.props.id;
   const mode = selected ? MODES[selected.type] : undefined;
+  // Blocks with text parts (the Hero) size each part on its own: the
+  // clicked part, else the first one (the title). `part` is that part.
+  const active = useActivePart();
+  const fields = selected ? getPuck().config.components[selected.type]?.fields : undefined;
+  const clicked = active && active.id === id ? active.part : null;
+  const part = clicked && fields?.[`${clicked}Typography`] ? clicked : fields?.titleTypography ? "title" : null;
+  const textProp = part ? `${part}Typography` : "typography";
   const [box, setBox] = useState<Box | null>(null);
   const [readout, setReadout] = useState<string | null>(null);
 
@@ -74,13 +85,13 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
     if (!doc || !win || !id || !mode) return;
     let frame = 0;
     const tick = () => {
-      const next = measure(doc, id, mode);
+      const next = measure(doc, id, mode, part);
       setBox((prev) => (sameBox(prev, next) ? prev : next));
       frame = win.requestAnimationFrame(tick);
     };
     frame = win.requestAnimationFrame(tick);
     return () => win.cancelAnimationFrame(frame);
-  }, [doc, id, mode]);
+  }, [doc, id, mode, part]);
 
   if (!doc) return null;
   const visible = box && mode && box.id === id;
@@ -95,7 +106,7 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
     const element = event.currentTarget;
     element.setPointerCapture(event.pointerId);
     const props = item.props as Record<string, unknown>;
-    const field = getPuck().config.components[item.type]?.fields?.typography;
+    const field = getPuck().config.components[item.type]?.fields?.[textProp];
     const basePx = resolveBasePx(field?.metadata as TypographyMetadata | undefined, props);
     const start = box;
     const startX = event.clientX;
@@ -168,7 +179,7 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
               x={box.left + box.width}
               y={box.top + box.height}
               shape="corner"
-              {...handleProps({ kind: "corner" }, "Dra för att ändra textstorleken")}
+              {...handleProps({ kind: "corner", prop: textProp }, "Dra för att ändra textstorleken")}
             />
           )}
           {mode === "columns" &&
@@ -284,10 +295,12 @@ function Grip({ x, y, shape, filled, ...rest }: GripProps) {
   );
 }
 
-function measure(doc: Document, id: string, mode: Mode): Box | null {
+function measure(doc: Document, id: string, mode: Mode, part: string | null): Box | null {
   const win = doc.defaultView;
   const wrapper = doc.querySelector(`[data-puck-component="${CSS.escape(id)}"]`);
-  const target = wrapper?.querySelector<HTMLElement>("[data-resize-box]");
+  const target =
+    (part && wrapper?.querySelector<HTMLElement>(`[data-part="${CSS.escape(part)}"]`)) ||
+    wrapper?.querySelector<HTMLElement>("[data-resize-box]");
   if (!win || !target) return null;
 
   const rect = target.getBoundingClientRect();
@@ -427,12 +440,12 @@ function dragResult(
     }
     case "corner": {
       // Scale along the diagonal, like resizing a text box in Canva.
-      const typography = withTypographyDefaults(props.typography as object | undefined);
+      const typography = withTypographyDefaults(props[handle.prop] as object | undefined);
       const factor = 1 + (dx / start.width + dy / start.height) / 2;
       const { min, max } = TYPOGRAPHY_RANGES.size;
       const size = Math.round(clamp(typography.size * factor, min, max));
       return {
-        patch: { typography: { ...typography, size } },
+        patch: { [handle.prop]: { ...typography, size } },
         readout: basePx ? `${Math.round((basePx * size) / 100)} px` : `${size} %`,
       };
     }
