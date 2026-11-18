@@ -359,15 +359,16 @@ export function BlockFieldItems({ id, part, close }: { id: string; part: string 
     // Text settings first, in Canva's order; the rest as in the config.
     .sort(([nameA, a], [nameB, b]) => textOrder(nameA, a) - textOrder(nameB, b));
 
-  // Picking Ljus/Mörk etc. should win over a custom hero color.
-  const changeField = (name: string, value: unknown) =>
-    updateBlockProps(
-      getPuck(),
-      id,
-      name === "background" && "backgroundColor" in item.props
-        ? { background: value, backgroundColor: "" }
-        : { [name]: value },
-    );
+  const changeField = (name: string, value: unknown) => {
+    const patch: Record<string, unknown> = { [name]: value };
+    // Picking Ljus/Mörk etc. should win over a custom hero color.
+    if (name === "background" && "backgroundColor" in item.props) patch.backgroundColor = "";
+    // A background color replaces the background image (metadata.replaces),
+    // which would otherwise cover it. One step, so undo brings both back.
+    const replaces = fields.find(([fieldName]) => fieldName === name)?.[1].metadata?.replaces as string | undefined;
+    if (replaces && value && item.props[replaces]) patch[replaces] = "";
+    updateBlockProps(getPuck(), id, patch);
+  };
   const fieldItem = ([name, field]: [string, Field]) => (
     <FieldItem
       key={name}
@@ -501,6 +502,9 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
   const parentProps = parent.props as Record<string, unknown>;
   const color = (value: unknown) => (typeof value === "string" ? value : "");
   const setParent = (patch: Record<string, unknown>) => updateBlockProps(getPuck(), parentId, patch);
+  // A color replaces the Sektion's background image, like on the block itself.
+  const setParentColor = (bgColor: string) =>
+    setParent(bgColor && parentProps.bgImage ? { bgColor, bgImage: "" } : { bgColor });
   const selectParent = () => {
     const selector = getPuck().getSelectorForId(parentId);
     if (selector) getPuck().dispatch({ type: "setUi", ui: { itemSelector: selector } });
@@ -519,7 +523,7 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
           icon={paletteIcon}
           hint={<Swatch color={color(parentProps.bgColor)} />}
           face={<FillColorFace color={color(parentProps.bgColor)} />}
-          submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
+          submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={setParentColor} />}
         />
         <MenuItem label="Markera sektionen" icon={selectIcon} onSelect={selectParent} />
       </>
@@ -543,7 +547,7 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
           icon={paletteIcon}
           hint={<Swatch color={color(parentProps.bgColor)} />}
           face={<FillColorFace color={color(parentProps.bgColor)} />}
-          submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={(bgColor) => setParent({ bgColor })} />}
+          submenu={<ColorPicker value={color(parentProps.bgColor)} optional onChange={setParentColor} />}
         />
         <MenuItem label="Markera Kolumner" icon={selectIcon} onSelect={selectParent} />
       </>

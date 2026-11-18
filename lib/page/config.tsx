@@ -143,9 +143,17 @@ function inGroup<F extends { metadata?: Record<string, unknown> }>(field: F, gro
   return { ...field, metadata: { ...field.metadata, group } };
 }
 
+/**
+ * A background color that replaces a background image (`imageProp`):
+ * picking a color removes the image, which would otherwise cover it.
+ */
+function replacesImage<F extends { metadata?: Record<string, unknown> }>(field: F, imageProp: string): F {
+  return { ...field, metadata: { ...field.metadata, replaces: imageProp } };
+}
+
 /** Background color and image behind a block (see BlockBackground). */
 const backgroundFields = {
-  bgColor: inGroup(colorField("Bakgrundsfärg"), "background"),
+  bgColor: replacesImage(inGroup(colorField("Bakgrundsfärg"), "background"), "bgImage"),
   bgImage: inGroup(imageField("Bakgrundsbild"), "background"),
   bgImageEdit: inGroup(imageEditField("bgImage", "bgImageEdit", true, "Redigera bakgrundsbild"), "background"),
   bgBox: inGroup({
@@ -380,7 +388,7 @@ export const pageConfig: PageConfig = {
             { label: "Mörk", value: "dark" },
           ],
         },
-        backgroundColor: inGroup(colorField("Bakgrundsfärg"), "heroBackground"),
+        backgroundColor: replacesImage(inGroup(colorField("Bakgrundsfärg"), "heroBackground"), "image"),
         align: alignField,
         // Hidden: text is styled per part (title, subtitle, button). Pages
         // that set these before keep them, under the parts' own settings.
