@@ -44,6 +44,10 @@ export type ImageEdit = {
   mobileFocus: boolean;
   mobileFocusX: number;
   mobileFocusY: number;
+  /** Its own focus point on tablets (640 to 1024 px), instead of focusX/Y. */
+  tabletFocus: boolean;
+  tabletFocusX: number;
+  tabletFocusY: number;
   zoom: number;
   radius: keyof typeof IMAGE_RADII;
 };
@@ -62,6 +66,9 @@ export const DEFAULT_IMAGE_EDIT: ImageEdit = {
   mobileFocus: false,
   mobileFocusX: 50,
   mobileFocusY: 50,
+  tabletFocus: false,
+  tabletFocusX: 50,
+  tabletFocusY: 50,
   zoom: 100,
   radius: "sm",
 };
@@ -76,6 +83,8 @@ export const IMAGE_RANGES = {
   focusY: { min: 0, max: 100 },
   mobileFocusX: { min: 0, max: 100 },
   mobileFocusY: { min: 0, max: 100 },
+  tabletFocusX: { min: 0, max: 100 },
+  tabletFocusY: { min: 0, max: 100 },
   zoom: { min: 100, max: 300 },
 } as const;
 
@@ -109,19 +118,49 @@ export function imageEditStyle(value: Partial<ImageEdit> | undefined): CSSProper
     transform: transform || undefined,
     transformOrigin: `${edit.focusX}% ${edit.focusY}%`,
     objectPosition: `${edit.focusX}% ${edit.focusY}%`,
-    // Read by MOBILE_FOCUS_CSS on phones.
+    // Read by DEVICE_FOCUS_CSS on phones and tablets.
     ...(edit.mobileFocus && { "--mobile-focus": `${edit.mobileFocusX}% ${edit.mobileFocusY}%` }),
+    ...(edit.tabletFocus && { "--tablet-focus": `${edit.tabletFocusX}% ${edit.tabletFocusY}%` }),
   } as CSSProperties;
 }
 
 /**
- * Puts images with their own phone focus point (--mobile-focus, from
- * imageEditStyle) on it below 640 px, Tailwind's `sm`, where the Hero
- * switches to its phone layout. !important to win over the inline
+ * Puts images with their own phone or tablet focus point (--mobile-focus,
+ * --tablet-focus, from imageEditStyle) on it: phones below 640 px
+ * (Tailwind's `sm`, where the Hero switches to its phone layout), tablets
+ * from 640 up to 1024 px (`lg`). !important to win over the inline
  * desktop position. Added to every page by SiteRoot.
  */
-export const MOBILE_FOCUS_CSS =
-  '@media not all and (min-width:40rem){img[style*="--mobile-focus"]{object-position:var(--mobile-focus)!important;transform-origin:var(--mobile-focus)!important}}';
+export const DEVICE_FOCUS_CSS = [
+  '@media not all and (min-width:40rem){img[style*="--mobile-focus"]{object-position:var(--mobile-focus)!important;transform-origin:var(--mobile-focus)!important}}',
+  '@media (min-width:40rem) and (not (min-width:64rem)){img[style*="--tablet-focus"]{object-position:var(--tablet-focus)!important;transform-origin:var(--tablet-focus)!important}}',
+].join("\n");
+
+export type FocusDevice = "desktop" | "tablet" | "phone";
+
+const DEVICE_FOCUS_KEYS = {
+  tablet: { own: "tabletFocus", x: "tabletFocusX", y: "tabletFocusY" },
+  phone: { own: "mobileFocus", x: "mobileFocusX", y: "mobileFocusY" },
+} as const;
+
+/** The focus point a device uses: its own, or the computer's. */
+export function deviceFocus(edit: ImageEdit, device: FocusDevice) {
+  if (device === "desktop") return { x: edit.focusX, y: edit.focusY, own: true };
+  const keys = DEVICE_FOCUS_KEYS[device];
+  return edit[keys.own] ? { x: edit[keys.x], y: edit[keys.y], own: true } : { x: edit.focusX, y: edit.focusY, own: false };
+}
+
+/** The change that gives a device this focus point (its own, for a tablet or phone). */
+export function setDeviceFocus(device: FocusDevice, x: number, y: number): Partial<ImageEdit> {
+  if (device === "desktop") return { focusX: x, focusY: y };
+  const keys = DEVICE_FOCUS_KEYS[device];
+  return { [keys.own]: true, [keys.x]: x, [keys.y]: y };
+}
+
+/** The change that makes a tablet or phone follow the computer's focus point again. */
+export function followDesktopFocus(device: Exclude<FocusDevice, "desktop">): Partial<ImageEdit> {
+  return { [DEVICE_FOCUS_KEYS[device].own]: false };
+}
 
 /** CSS for the box around the image: crop format and corners. */
 export function imageFrameStyle(value: Partial<ImageEdit> | undefined): CSSProperties {
@@ -146,6 +185,7 @@ export function sanitizeImageEdit(value: unknown): ImageEdit {
   if (typeof input.flipX === "boolean") edit.flipX = input.flipX;
   if (typeof input.flipY === "boolean") edit.flipY = input.flipY;
   if (typeof input.mobileFocus === "boolean") edit.mobileFocus = input.mobileFocus;
+  if (typeof input.tabletFocus === "boolean") edit.tabletFocus = input.tabletFocus;
   if (typeof input.filter === "string" && Object.hasOwn(IMAGE_FILTERS, input.filter)) {
     edit.filter = input.filter as ImageEdit["filter"];
   }

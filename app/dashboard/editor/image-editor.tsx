@@ -8,6 +8,9 @@ import type { PageConfig } from "@/lib/page/config";
 import { fontCss, GOOGLE_FONTS } from "@/lib/page/fonts";
 import {
   DEFAULT_IMAGE_EDIT,
+  deviceFocus,
+  type FocusDevice,
+  followDesktopFocus,
   IMAGE_ASPECTS,
   IMAGE_FILTERS,
   IMAGE_RADII,
@@ -15,6 +18,7 @@ import {
   type ImageEdit,
   imageEditStyle,
   imageFrameStyle,
+  setDeviceFocus,
   withImageDefaults,
 } from "@/lib/page/image-edit";
 
@@ -55,7 +59,8 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   const getPuck = useGetPuck();
   const item = usePuck((s) => s.getItemById(target.blockId));
   const [tab, setTab] = useState<Tab>("adjust");
-  // The preview as on a computer, a tablet or a phone (the switch above it).
+  // The preview as on a computer, a tablet or a phone (the switch above it);
+  // the focus point controls are for that device.
   const [device, setDevice] = useState<Device>("desktop");
   const src = item?.props[target.imageProp as keyof typeof item.props];
   const edit = withImageDefaults(item?.props[target.editProp as keyof typeof item.props] as Partial<ImageEdit>);
@@ -106,11 +111,9 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
               edit={edit}
               background={target.background}
               device={device === "desktop" ? null : deviceFrame(device, item, target.background)}
-              onFocus={(x, y) =>
-                // A click in the phone view picks the phone's own position;
-                // a tablet uses the computer's.
-                change(device === "phone" ? { mobileFocus: true, mobileFocusX: x, mobileFocusY: y } : { focusX: x, focusY: y })
-              }
+              // A click picks the position for the device shown (its own,
+              // for a tablet or phone).
+              onFocus={(x, y) => change(setDeviceFocus(device, x, y))}
               showFocus={tab === "crop"}
             />
           </div>
@@ -182,44 +185,7 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
                   />
                 )}
                 <Slider label="Zoom" value={edit.zoom} {...IMAGE_RANGES.zoom} unit=" %" onChange={(zoom) => change({ zoom })} />
-                <p className="text-xs text-zinc-500">Klicka i bilden för att välja vad som ska synas i mitten.</p>
-                <Slider label="Fokus vågrätt" value={edit.focusX} {...IMAGE_RANGES.focusX} unit=" %" onChange={(focusX) => change({ focusX })} />
-                <Slider label="Fokus lodrätt" value={edit.focusY} {...IMAGE_RANGES.focusY} unit=" %" onChange={(focusY) => change({ focusY })} />
-                <Toggle
-                  label="Egen position på mobil"
-                  active={edit.mobileFocus}
-                  onClick={() => {
-                    // Starts from the current position, so turning it on changes nothing yet.
-                    change(
-                      edit.mobileFocus
-                        ? { mobileFocus: false }
-                        : { mobileFocus: true, mobileFocusX: edit.focusX, mobileFocusY: edit.focusY },
-                    );
-                    if (!edit.mobileFocus) setDevice("phone");
-                  }}
-                />
-                {edit.mobileFocus && (
-                  <>
-                    <p className="text-xs text-zinc-500">
-                      Gäller bara på mobil. Under Mobil ovanför bilden ser du den som på en telefon; klicka i den för
-                      att välja mobilens mitt.
-                    </p>
-                    <Slider
-                      label="Mobil: vågrätt"
-                      value={edit.mobileFocusX}
-                      {...IMAGE_RANGES.mobileFocusX}
-                      unit=" %"
-                      onChange={(mobileFocusX) => change({ mobileFocusX })}
-                    />
-                    <Slider
-                      label="Mobil: lodrätt"
-                      value={edit.mobileFocusY}
-                      {...IMAGE_RANGES.mobileFocusY}
-                      unit=" %"
-                      onChange={(mobileFocusY) => change({ mobileFocusY })}
-                    />
-                  </>
-                )}
+                <FocusControls edit={edit} device={device} onChange={change} />
                 <div className="grid grid-cols-2 gap-2">
                   <Toggle label="Spegla vågrätt" active={edit.flipX} onClick={() => change({ flipX: !edit.flipX })} />
                   <Toggle label="Spegla lodrätt" active={edit.flipY} onClick={() => change({ flipY: !edit.flipY })} />
@@ -254,8 +220,65 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   );
 }
 
-const DEVICES = { desktop: "Dator", tablet: "Surfplatta", phone: "Mobil" } as const;
-type Device = keyof typeof DEVICES;
+const DEVICES = { desktop: "Dator", tablet: "Surfplatta", phone: "Mobil" } as const satisfies Record<FocusDevice, string>;
+type Device = FocusDevice;
+
+/**
+ * The focus point for the device in the switch. A tablet or phone follows
+ * the computer until its position is changed; then it has its own, which
+ * can be dropped again.
+ */
+function FocusControls({
+  edit,
+  device,
+  onChange,
+}: {
+  edit: ImageEdit;
+  device: Device;
+  onChange: (patch: Partial<ImageEdit>) => void;
+}) {
+  const focus = deviceFocus(edit, device);
+  const name = DEVICES[device].toLowerCase();
+  const suffix = device === "desktop" ? "" : ` (${name})`;
+  return (
+    <>
+      <p className="text-xs text-zinc-500">
+        Klicka i bilden för att välja vad som ska synas i mitten{device === "desktop" ? "." : ` på ${name}.`}
+      </p>
+      <Slider
+        label={`Fokus vågrätt${suffix}`}
+        value={focus.x}
+        {...IMAGE_RANGES.focusX}
+        unit=" %"
+        onChange={(x) => onChange(setDeviceFocus(device, x, focus.y))}
+      />
+      <Slider
+        label={`Fokus lodrätt${suffix}`}
+        value={focus.y}
+        {...IMAGE_RANGES.focusY}
+        unit=" %"
+        onChange={(y) => onChange(setDeviceFocus(device, focus.x, y))}
+      />
+      {device !== "desktop" &&
+        (focus.own ? (
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-900">
+            Egen position för {name}.
+            <button
+              type="button"
+              onClick={() => onChange(followDesktopFocus(device))}
+              className="font-semibold underline hover:no-underline"
+            >
+              Följ datorn
+            </button>
+          </div>
+        ) : (
+          <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+            Följer datorns position tills du ändrar den här.
+          </p>
+        ))}
+    </>
+  );
+}
 
 /**
  * How the image is framed on a tablet or phone. Phones (below 640 px): a
@@ -307,7 +330,6 @@ function Preview({
   showFocus: boolean;
   onFocus: (x: number, y: number) => void;
 }) {
-  const phone = device?.kind === "phone";
   const frame = device
     ? { ...(background ? {} : imageFrameStyle(edit)), ...(device.aspectRatio && { aspectRatio: device.aspectRatio }) }
     : background
@@ -316,11 +338,10 @@ function Preview({
   const cropped = device
     ? Boolean(device.aspectRatio) || (!background && edit.aspect !== "original")
     : background || edit.aspect !== "original";
-  // On a phone its own focus point is the one in use, if it has one.
-  const shown =
-    phone && edit.mobileFocus
-      ? { ...edit, focusX: edit.mobileFocusX, focusY: edit.mobileFocusY, mobileFocus: false }
-      : { ...edit, mobileFocus: false };
+  // The device's focus point: its own, if it has one, else the computer's.
+  const focus = deviceFocus(edit, device?.kind ?? "desktop");
+  const shown = { ...edit, focusX: focus.x, focusY: focus.y, mobileFocus: false, tabletFocus: false };
+  const ownFocus = Boolean(device) && focus.own;
   return (
     <div
       style={frame}
@@ -341,7 +362,7 @@ function Preview({
         <span
           aria-hidden
           className={`pointer-events-none absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${
-            phone && edit.mobileFocus ? "bg-violet-600" : ""
+            ownFocus ? "bg-violet-600" : ""
           }`}
           style={{ left: `${shown.focusX}%`, top: `${shown.focusY}%` }}
         />
