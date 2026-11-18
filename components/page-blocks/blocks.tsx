@@ -640,12 +640,14 @@ export type ImageProps = {
   src: string;
   alt: string;
   width: keyof typeof imageWidth;
-  /** Image width in pixels; 0 fills the width above. */
+  /** Image width in widthUnit; 0 fills the width above. */
   widthPx: number;
+  /** "%" is a share of the page width. Missing on older pages: pixels. */
+  widthUnit: "px" | "%";
   edit: ImageEdit;
 };
 
-export function ImageBlock({ src, alt, width, widthPx, edit, imageControls }: ImageProps & ImageControls) {
+export function ImageBlock({ src, alt, width, widthPx, widthUnit, edit, imageControls }: ImageProps & ImageControls) {
   if (!src) {
     // An empty image is only shown in the editor, as a place to upload one.
     if (!imageControls) return null;
@@ -658,15 +660,22 @@ export function ImageBlock({ src, alt, width, widthPx, edit, imageControls }: Im
       </div>
     );
   }
+  // A share of the page: measured on the whole page width, edge to edge at 100 %.
+  const percent = widthUnit === "%" && widthPx > 0;
+  const edgeToEdge = percent ? widthPx >= 100 : width === "full";
   return (
-    <figure className={`group relative mx-auto py-6 ${width === "full" ? "" : "px-6"} ${imageWidth[width]}`}>
+    <figure
+      className={`group relative mx-auto py-6 ${width === "full" || percent ? "" : "px-6"} ${
+        percent ? imageWidth.full : imageWidth[width]
+      }`}
+    >
       {/* The frame crops (format, zoom) and rounds the corners. */}
       <div
         data-resize-box
         style={{
           ...imageFrameStyle(edit),
-          ...(width === "full" && { borderRadius: 0 }),
-          ...(widthPx > 0 && { width: widthPx, maxWidth: "100%", marginInline: "auto" }),
+          ...(edgeToEdge && { borderRadius: 0 }),
+          ...(widthPx > 0 && { width: percent ? `${widthPx}%` : widthPx, maxWidth: "100%", marginInline: "auto" }),
         }}
         className="overflow-hidden"
       >

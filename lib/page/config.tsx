@@ -317,8 +317,16 @@ export const pageConfig: PageConfig = {
           min: 0,
           max: 2000,
           step: 10,
-          // The menu shows the unit chosen in heroHeightUnit.
-          metadata: { unitProp: "heroHeightUnit", group: "heroBackground" },
+          // One menu row for the height and its unit (heroHeightUnit).
+          metadata: {
+            unitProp: "heroHeightUnit",
+            units: [
+              { value: "px", label: "px", max: 2000 },
+              { value: "vh", label: "%", max: 200 },
+            ],
+            unitHint: "0 = automatisk. % är andel av skärmens höjd.",
+            group: "heroBackground",
+          },
         },
         overlay: {
           metadata: { group: "heroBackground", needs: "image" },
@@ -514,17 +522,44 @@ export const pageConfig: PageConfig = {
         width: {
           type: "select",
           label: "Bredd",
+          // Older width presets: still used when widthPx is 0 (automatic).
+          visible: false,
           options: [
             { label: "Smal", value: "narrow" },
             { label: "Bred", value: "wide" },
             { label: "Hela sidan", value: "full" },
           ],
         },
-        widthPx: { type: "number", label: "Bredd i pixlar (0 = fyll bredden)", min: 0, max: 2000, step: 10 },
+        widthPx: {
+          type: "number",
+          label: "Bredd",
+          min: 0,
+          max: 2000,
+          step: 10,
+          // One menu row for the width and its unit (widthUnit), like the Hero's height.
+          metadata: {
+            unitProp: "widthUnit",
+            units: [
+              { value: "px", label: "px", max: 2000 },
+              { value: "%", label: "%", max: 100 },
+            ],
+            unitHint: "0 = automatisk. % är andel av sidans bredd.",
+          },
+        },
+        widthUnit: {
+          type: "radio",
+          label: "Breddenhet",
+          // Picked next to the width itself.
+          visible: false,
+          options: [
+            { label: "Pixlar", value: "px" },
+            { label: "% av sidans bredd", value: "%" },
+          ],
+        },
         ...backgroundFields,
       },
       defaultProps: {
-        ...backgroundDefaults, layerName: "", src: "", alt: "", width: "wide", widthPx: 0, edit: DEFAULT_IMAGE_EDIT },
+        ...backgroundDefaults, layerName: "", src: "", alt: "", width: "wide", widthPx: 0, widthUnit: "px", edit: DEFAULT_IMAGE_EDIT },
       render: ({ puck, ...props }) =>
         withBackground(
           props,

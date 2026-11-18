@@ -594,27 +594,25 @@ function FieldItem({
   switch (field.type) {
     case "number": {
       const number = typeof value === "number" ? value : 0;
-      // A sibling prop can hold the unit (e.g. Hero's heroHeightUnit).
+      // A sibling prop can hold the unit (e.g. Hero's heroHeightUnit, the
+      // Image's widthUnit): one row for the number and its unit.
       const unitProp = field.metadata?.unitProp as string | undefined;
-      const screenShare = unitProp && block?.props[unitProp] === "vh";
+      const units = (field.metadata?.units ?? []) as { value: string; label: string; max: number }[];
+      const unit = units.find((u) => u.value === block?.props[unitProp ?? ""]) ?? units[0];
       return (
         <MenuItem
           id={name}
           label={label}
-          icon={<Icon><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" /></Icon>}
-          hint={number > 0 ? `${number} ${screenShare ? "%" : "px"}` : "Auto"}
+          icon={numberIcon(name)}
+          hint={number > 0 ? `${number} ${unit?.label ?? "px"}` : "Auto"}
           submenu={
-            unitProp && block ? (
-              // The height and its unit in one place.
+            unitProp && block && unit ? (
               <NumberUnitInput
                 value={number}
-                unit={screenShare ? "vh" : "px"}
-                units={[
-                  { value: "px", label: "px", max: field.max ?? 2000 },
-                  { value: "vh", label: "%", max: 200 },
-                ]}
+                unit={unit.value}
+                units={units}
                 min={field.min ?? 0}
-                hint="0 = automatisk. % är andel av skärmens höjd."
+                hint={field.metadata?.unitHint as string | undefined}
                 onSave={(next, unit) => {
                   updateBlockProps(getPuck(), block.id, { [name]: next, [unitProp]: unit });
                   close();
@@ -957,6 +955,13 @@ function TextSizeStepper({
       {stepButton(1)}
     </span>
   );
+}
+
+/** An icon for a number field: arrows for widths and heights, else "#". */
+function numberIcon(name: string): ReactNode {
+  if (/width/i.test(name)) return <Icon><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" /></Icon>;
+  if (/height/i.test(name)) return <Icon><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" /></Icon>;
+  return <Icon><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" /></Icon>;
 }
 
 /**

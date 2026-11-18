@@ -378,6 +378,11 @@ function dragResult(
       const direction = handle.kind === "right" ? 1 : -1;
       const width = Math.round(clamp(start.width + 2 * direction * dx, 40, start.room));
       const fills = width >= start.room - 2;
+      // Keep the unit that's chosen: pixels or % of the page width.
+      if (props.widthUnit === "%") {
+        const share = fills ? 100 : Math.max(1, Math.round((width / start.room) * 100));
+        return { patch: { widthPx: share }, readout: `${share} %` };
+      }
       return { patch: { widthPx: fills ? 0 : width }, readout: fills ? "Fyller bredden" : `${width} px` };
     }
     case "boxWidth": {
