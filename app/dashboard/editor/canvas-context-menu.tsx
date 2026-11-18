@@ -22,7 +22,7 @@ import {
 import { ACCEPTED_FONT_TYPES, useFontUpload } from "@/components/page-blocks/use-upload";
 import type { Box } from "@/lib/page/box";
 import type { PageConfig } from "@/lib/page/config";
-import type { Typography } from "@/lib/page/typography";
+import { TYPOGRAPHY_RANGES, type Typography, withTypographyDefaults } from "@/lib/page/typography";
 import {
   type CustomFont,
   customFontValue,
@@ -45,6 +45,7 @@ import {
   Swatch,
   TextInput,
   Toolbar,
+  useInToolbar,
 } from "./context-menu-ui";
 import { PART_LABELS, partAt, setActivePart, useActivePart } from "./active-part";
 import { layerLabel, renameLayer } from "./layers-panel";
@@ -379,6 +380,7 @@ export function BlockFieldItems({ id, part, close }: { id: string; part: string 
           key={group}
           id={`group:${group}`}
           label={GROUP_LABELS[group] ?? group}
+          face="label"
           icon={<Icon><rect x="4" y="5" width="16" height="14" rx="3" /><path d="M4 15l4-4 4 4 3-3 5 5" /></Icon>}
           submenu={entries.map(fieldItem)}
         />
@@ -388,11 +390,16 @@ export function BlockFieldItems({ id, part, close }: { id: string; part: string 
   );
 }
 
-/** The page's own settings (Puck's root fields), as menu rows or toolbar buttons. */
+/**
+ * The page's own settings (Puck's root fields), as menu rows or toolbar
+ * buttons. Not its name: that is edited where it shows, in the top bar.
+ */
 export function PageFieldItems({ close }: { close: () => void }) {
   const getPuck = useGetPuck();
   const data = usePuck((s) => s.appState.data);
-  const fields = Object.entries(getPuck().config.root?.fields ?? {}) as [string, Field][];
+  const fields = (Object.entries(getPuck().config.root?.fields ?? {}) as [string, Field][]).filter(
+    ([name]) => name !== "title",
+  );
   return fields.map(([name, field]) => (
     <FieldItem
       key={name}
@@ -504,6 +511,7 @@ function ContainerItems({ zone, close }: { zone: string; close: () => void }) {
   return (
     <MenuItem
       label={parent.type === "Section" ? "Sektion" : "Kolumner"}
+      face="label"
       icon={<Icon><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M7 9h10M7 13h6" /></Icon>}
       submenu={items}
     />
@@ -552,6 +560,7 @@ function FieldItem({
   optionalColor?: boolean;
 }) {
   const imageEditor = useImageEditor();
+  const inToolbar = useInToolbar();
   // "Bakgrundsbild (valfri)" -> "Bakgrundsbild": the menu is narrow. A
   // field can also give a shorter menu label of its own.
   const label = (field.metadata?.menuLabel as string | undefined) ?? (field.label ?? name).replace(/\s*\(.*\)$/, "");
@@ -647,6 +656,8 @@ function FieldItem({
             label={label}
             icon={<Icon><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" /></Icon>}
             hint={<Swatch color={text} />}
+            // Like Canva: an "A" over the color for text, a dot for fills.
+            face={/text|rubrik/i.test(field.label ?? name) ? <TextColorFace color={text} /> : <FillColorFace color={text} />}
             submenu={<ColorPicker value={text} onChange={onChange} optional={optionalColor} />}
           />
         );
@@ -679,6 +690,7 @@ function FieldItem({
           <MenuItem
             id={name}
             label={`${label}...`}
+            face={label}
             icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
             onSelect={() => {
               imageEditor.open({
@@ -695,6 +707,9 @@ function FieldItem({
       if (kind === "typography") {
         const typography = value as Partial<Typography> | undefined;
         const basePx = resolveBasePx(field.metadata as TypographyMetadata, block?.props);
+        if (inToolbar) {
+          return <TextSizeStepper name={name} label={label} value={typography} basePx={basePx} onChange={onChange} />;
+        }
         return (
           <MenuItem
             id={name}
@@ -762,6 +777,14 @@ function FieldItem({
             label={label}
             icon={<Icon><path d="M4 20 10 4h1l6 16M6.5 14h8" /></Icon>}
             hint={<span style={{ fontFamily: fontFamily(text) }}>{fontLabel(text)}</span>}
+            face={
+              <span className="flex h-7 w-36 items-center justify-between gap-1 rounded-md border border-zinc-300 px-2 font-normal">
+                <span className="truncate" style={{ fontFamily: fontFamily(text) }}>
+                  {fontLabel(text)}
+                </span>
+                <Icon className="shrink-0 text-zinc-500"><path d="m6 9 6 6 6-6" /></Icon>
+              </span>
+            }
             scrollable
             submenu={
               <FontPicker
@@ -780,6 +803,89 @@ function FieldItem({
     default:
       return null;
   }
+}
+
+/** Toolbar face of a text color: an "A" over a bar in the color. */
+function TextColorFace({ color }: { color: string }) {
+  return (
+    <span className="flex flex-col items-center leading-none">
+      <span className="text-base font-semibold">A</span>
+      <span
+        className="mt-0.5 h-1 w-5 rounded-full ring-1 ring-black/10"
+        style={{ background: color || "linear-gradient(90deg, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)" }}
+      />
+    </span>
+  );
+}
+
+/** Toolbar face of a fill color (background, button): a round swatch. */
+function FillColorFace({ color }: { color: string }) {
+  return (
+    <span
+      className="block size-6 rounded-full ring-1 ring-black/15"
+      style={{
+        background: color || "linear-gradient(135deg, #fff 45%, #ef4444 45%, #ef4444 55%, #fff 55%)",
+      }}
+    />
+  );
+}
+
+/**
+ * Text size like in Canva: "− 48 +" in the toolbar, one pixel per step
+ * (or 5 % when the block's normal size isn't known). The number opens the
+ * full controls (letter spacing, line height).
+ */
+function TextSizeStepper({
+  name,
+  label,
+  value,
+  basePx,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  value: Partial<Typography> | undefined;
+  basePx?: number;
+  onChange: (value: unknown) => void;
+}) {
+  const typography = withTypographyDefaults(value);
+  const { min, max } = TYPOGRAPHY_RANGES.size;
+  const toPx = (size: number) => (basePx ? Math.round((basePx * size) / 100) : size);
+  const shown = toPx(typography.size);
+
+  function step(direction: 1 | -1) {
+    let size = basePx ? Math.round(((shown + direction) / basePx) * 100) : typography.size + 5 * direction;
+    // Rounding can land on the same pixel size; go one percent further.
+    while (basePx && toPx(size) === shown && size > min && size < max) size += direction;
+    onChange({ ...typography, size: Math.min(max, Math.max(min, size)) });
+  }
+
+  const stepButton = (direction: 1 | -1) => (
+    <button
+      type="button"
+      title={direction > 0 ? "Större text" : "Mindre text"}
+      aria-label={direction > 0 ? "Större text" : "Mindre text"}
+      disabled={direction > 0 ? typography.size >= max : typography.size <= min}
+      onClick={() => step(direction)}
+      className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100 disabled:opacity-30"
+    >
+      <Icon><path d={direction > 0 ? "M12 5v14M5 12h14" : "M5 12h14"} /></Icon>
+    </button>
+  );
+
+  return (
+    <span className="mx-0.5 flex items-center rounded-md border border-zinc-300">
+      {stepButton(-1)}
+      <MenuItem
+        id={name}
+        label={label}
+        hint={basePx ? `${shown} px` : `${shown} %`}
+        face={<span className="min-w-7 text-center tabular-nums">{basePx ? shown : `${shown}%`}</span>}
+        submenu={<TypographyControls value={typography} onChange={onChange} basePx={basePx} />}
+      />
+      {stepButton(1)}
+    </span>
+  );
 }
 
 /**

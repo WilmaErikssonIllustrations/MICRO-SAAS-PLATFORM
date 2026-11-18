@@ -1,8 +1,9 @@
 "use client";
 
 import { createUsePuck, useGetPuck } from "@puckeditor/core";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import type { EditorActionResult } from "@/actions/website";
+import { updateRootProps } from "@/components/page-blocks/update-block";
 import type { PageConfig, PageData } from "@/lib/page/config";
 
 const usePuck = createUsePuck<PageConfig>();
@@ -49,9 +50,7 @@ export function EditorTopBar({ onSave, onPublish, ...status }: EditorTopBarProps
         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-bold text-white">
           {(title || "W").trim().charAt(0).toUpperCase()}
         </span>
-        <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm font-semibold">{title || "Min hemsida"}</p>
-        </div>
+        <PageName title={title ?? ""} onRename={(name) => updateRootProps(getPuck(), { title: name })} />
       </div>
 
       <div className="flex items-center gap-1">
@@ -86,6 +85,56 @@ export function EditorTopBar({ onSave, onPublish, ...status }: EditorTopBarProps
         </button>
       </div>
     </header>
+  );
+}
+
+/** The page name; a click turns it into a field. Enter or leaving saves, Esc cancels. */
+function PageName({ title, onRename }: { title: string; onRename: (name: string) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const cancelled = useRef(false);
+
+  if (draft === null) {
+    return (
+      <button
+        type="button"
+        title="Byt namn på sidan"
+        onClick={() => {
+          cancelled.current = false;
+          setDraft(title);
+        }}
+        className="min-w-0 truncate rounded-md px-1.5 py-1 text-left text-sm font-semibold hover:bg-zinc-100"
+      >
+        {title || "Min hemsida"}
+      </button>
+    );
+  }
+
+  const save = () => {
+    // Esc already closed it (the field can still fire blur as it goes).
+    if (cancelled.current) return;
+    const name = draft.trim();
+    if (name && name !== title) onRename(name);
+    setDraft(null);
+  };
+
+  return (
+    <input
+      autoFocus
+      aria-label="Sidans namn"
+      value={draft}
+      maxLength={80}
+      onChange={(event) => setDraft(event.target.value)}
+      onFocus={(event) => event.target.select()}
+      onBlur={save}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") save();
+        if (event.key === "Escape") {
+          cancelled.current = true;
+          setDraft(null);
+        }
+      }}
+      className="h-8 w-56 min-w-0 rounded-md border border-violet-500 px-1.5 text-sm font-semibold outline-none"
+    />
   );
 }
 

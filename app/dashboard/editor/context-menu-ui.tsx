@@ -152,7 +152,7 @@ export function Toolbar({ doc, children }: { doc?: Document | null; children: (c
   );
 }
 
-function ToolbarButton({ id, label, icon, hint, disabled, danger, onSelect, submenu, scrollable }: MenuItemProps) {
+function ToolbarButton({ id, label, icon, hint, disabled, danger, onSelect, submenu, scrollable, face }: MenuItemProps) {
   const { openId, setOpenId } = useContext(MenuContext);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const key = id ?? label;
@@ -177,13 +177,15 @@ function ToolbarButton({ id, label, icon, hint, disabled, danger, onSelect, subm
           setAnchor(event.currentTarget.getBoundingClientRect());
           setOpenId(open ? null : key);
         }}
-        className={`flex size-8 shrink-0 items-center justify-center rounded-lg disabled:cursor-default disabled:opacity-40 ${
+        className={`flex h-8 shrink-0 items-center justify-center rounded-lg disabled:cursor-default disabled:opacity-40 ${
+          face === undefined ? "w-8 [&>svg]:size-[18px]" : "px-2 text-sm font-medium whitespace-nowrap"
+        } ${
           danger
             ? "text-red-600 hover:bg-red-50"
-            : `hover:bg-violet-50 hover:text-violet-900 ${open ? "bg-violet-100 text-violet-900" : "text-zinc-600"}`
+            : `hover:bg-zinc-100 ${open ? "bg-violet-100 text-violet-900" : "text-zinc-800"}`
         }`}
       >
-        {icon}
+        {face === "label" ? label : (face ?? icon)}
       </button>
       {open && (
         <Dropdown anchor={anchor} scrollable={scrollable}>
@@ -234,7 +236,15 @@ type MenuItemProps = {
   submenu?: ReactNode;
   /** For long submenus (e.g. fonts): scroll instead of growing. */
   scrollable?: boolean;
+  /**
+   * What the button shows in a Toolbar instead of the icon, e.g. a color
+   * or the font name; "label" shows the label as text.
+   */
+  face?: ReactNode;
 };
+
+/** Whether this is rendered in a Toolbar rather than a menu. */
+export const useInToolbar = () => Boolean(useContext(MenuContext).toolbar);
 
 export function MenuItem(props: MenuItemProps) {
   if (useContext(MenuContext).toolbar) return <ToolbarButton {...props} />;
