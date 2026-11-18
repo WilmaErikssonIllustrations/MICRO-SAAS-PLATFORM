@@ -62,7 +62,7 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   const [tab, setTab] = useState<Tab>("adjust");
   // The preview as on a computer, a tablet or a phone (the switch above it).
   // Every control shows and changes that device's settings.
-  const [device, setDevice] = useState<Device>("desktop");
+  const [device, setDevice] = useState<Device>("all");
   const src = item?.props[target.imageProp as keyof typeof item.props];
   const stored = withImageDefaults(item?.props[target.editProp as keyof typeof item.props] as Partial<ImageEdit>);
   const edit = deviceSettings(stored, device);
@@ -113,7 +113,7 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
               src={src}
               edit={edit}
               background={target.background}
-              device={device === "desktop" ? null : deviceFrame(device, item, target.background)}
+              device={device === "tablet" || device === "phone" ? deviceFrame(device, item, target.background) : null}
               ownSettings={hasDeviceSettings(stored, device)}
               // A click picks the position for the device shown.
               onFocus={(x, y) => change({ focusX: x, focusY: y })}
@@ -148,7 +148,7 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 text-sm">
-            {device !== "desktop" && (
+            {device !== "all" && (
               <DeviceNotice
                 name={DEVICES[device].toLowerCase()}
                 own={hasDeviceSettings(stored, device)}
@@ -213,8 +213,8 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
           <div className="flex gap-2 border-t border-zinc-200 px-5 py-4">
             <button
               type="button"
-              // The device shown: the computer's settings, or a tablet's or
-              // phone's own (it then follows the computer again).
+              // The device shown: the settings for all, or a device's own
+              // (it then follows all again).
               onClick={() => save(resetDevice(stored, device))}
               className="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-semibold hover:bg-zinc-50"
             >
@@ -234,21 +234,26 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
   );
 }
 
-const DEVICES = { desktop: "Dator", tablet: "Surfplatta", phone: "Mobil" } as const satisfies Record<ImageDevice, string>;
+const DEVICES = {
+  all: "Alla",
+  desktop: "Dator",
+  tablet: "Surfplatta",
+  phone: "Mobil",
+} as const satisfies Record<ImageDevice, string>;
 type Device = ImageDevice;
 
-/** Whether a tablet or phone follows the computer or has its own settings, and a way back. */
+/** Whether a device follows Alla or has its own settings, and a way back. */
 function DeviceNotice({ name, own, onFollow }: { name: string; own: boolean; onFollow: () => void }) {
   return own ? (
     <div className="flex items-center justify-between gap-2 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-900">
       <span>Egna inställningar för {name}. Ändringar här gäller bara {name}.</span>
       <button type="button" onClick={onFollow} className="shrink-0 font-semibold underline hover:no-underline">
-        Följ datorn
+        Följ Alla
       </button>
     </div>
   ) : (
     <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-      Följer datorn. Det du ändrar här gäller bara {name}.
+      Följer Alla. Det du ändrar här gäller bara {name}.
     </p>
   );
 }
@@ -335,7 +340,7 @@ function Preview({
         <span
           aria-hidden
           className={`pointer-events-none absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${
-            device && ownSettings ? "bg-violet-600" : ""
+            ownSettings ? "bg-violet-600" : ""
           }`}
           style={{ left: `${edit.focusX}%`, top: `${edit.focusY}%` }}
         />

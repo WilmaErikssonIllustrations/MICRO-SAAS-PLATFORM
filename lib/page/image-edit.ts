@@ -4,9 +4,9 @@ import type { CSSProperties } from "react";
 // applied with CSS, so the original upload is kept and edits can be undone.
 // Shared by the editor, the published page and lib/page/sanitize.ts.
 //
-// The settings are the computer's. A tablet or phone can change any of them
-// for itself (`tablet` / `phone`: only what differs); everything it doesn't
-// change follows the computer.
+// The settings are for all screens. A computer, tablet or phone can change
+// any of them for itself (`desktop` / `tablet` / `phone`: only what
+// differs); everything it doesn't change follows the settings for all.
 
 export const IMAGE_FILTERS = {
   none: { label: "Inget", css: "" },
@@ -49,15 +49,17 @@ export type ImageSettings = {
   radius: keyof typeof IMAGE_RADII;
 };
 
-/** The computer's settings, plus what a tablet or phone changes for itself. */
+/** The settings for all screens, plus what a computer, tablet or phone changes for itself. */
 export type ImageEdit = ImageSettings & {
+  desktop?: Partial<ImageSettings>;
   tablet?: Partial<ImageSettings>;
   phone?: Partial<ImageSettings>;
 };
 
-export type ImageDevice = "desktop" | "tablet" | "phone";
-type OtherDevice = Exclude<ImageDevice, "desktop">;
-const OTHER_DEVICES: OtherDevice[] = ["tablet", "phone"];
+/** "all" is every screen: the shared settings. */
+export type ImageDevice = "all" | "desktop" | "tablet" | "phone";
+type OwnDevice = Exclude<ImageDevice, "all">;
+const OWN_DEVICES: OwnDevice[] = ["desktop", "tablet", "phone"];
 
 export const DEFAULT_IMAGE_SETTINGS: ImageSettings = {
   brightness: 100,
@@ -115,31 +117,31 @@ export function withImageDefaults(edit: Partial<ImageEdit> | undefined): ImageEd
   return result;
 }
 
-/** The settings a device uses: its own changes over the computer's. */
+/** The settings a device uses: its own changes over the settings for all. */
 export function deviceSettings(value: Partial<ImageEdit> | undefined, device: ImageDevice): ImageSettings {
-  const { tablet, phone, ...base } = withImageDefaults(value);
-  const own = device === "tablet" ? tablet : device === "phone" ? phone : undefined;
+  const { desktop, tablet, phone, ...base } = withImageDefaults(value);
+  const own = { all: undefined, desktop, tablet, phone }[device];
   return { ...base, ...own };
 }
 
-/** Whether a tablet or phone has settings of its own. */
+/** Whether a computer, tablet or phone has settings of its own. */
 export function hasDeviceSettings(value: Partial<ImageEdit> | undefined, device: ImageDevice) {
-  if (device === "desktop") return false;
+  if (device === "all") return false;
   const own = withImageDefaults(value)[device];
   return Boolean(own && Object.keys(own).length > 0);
 }
 
-/** The edit after changing settings for one device (the computer's, or a tablet's or phone's own). */
+/** The edit after changing settings for all screens, or for one device only. */
 export function changeForDevice(value: Partial<ImageEdit> | undefined, device: ImageDevice, patch: Partial<ImageSettings>): ImageEdit {
   const edit = withImageDefaults(value);
-  if (device === "desktop") return { ...edit, ...patch };
+  if (device === "all") return { ...edit, ...patch };
   return { ...edit, [device]: { ...edit[device], ...patch } };
 }
 
-/** The edit after a device's settings go back to the default: the computer's, or following the computer. */
+/** The edit after a device's settings go back: the defaults for all, or a device following all again. */
 export function resetDevice(value: Partial<ImageEdit> | undefined, device: ImageDevice): ImageEdit {
   const edit = withImageDefaults(value);
-  if (device === "desktop") return { ...edit, ...DEFAULT_IMAGE_SETTINGS };
+  if (device === "all") return { ...edit, ...DEFAULT_IMAGE_SETTINGS };
   const rest = { ...edit };
   delete rest[device];
   return rest;
@@ -170,9 +172,9 @@ function imageCss(settings: ImageSettings) {
 const cropped = (settings: ImageSettings) => settings.aspect !== "original";
 
 /**
- * CSS for the <img> element: the computer's settings inline, and each
- * tablet's or phone's own as variables that DEVICE_IMAGE_CSS applies at
- * its width. `sizedByFormat`: the image is h-full when cropped to a format,
+ * CSS for the <img> element: the settings for all inline, and each
+ * computer's, tablet's or phone's own as variables that DEVICE_IMAGE_CSS
+ * applies at its width. `sizedByFormat`: the image is h-full when cropped to a format,
  * else h-auto (Bild), so a device's own format sets its height too.
  */
 export function imageEditStyle(value: Partial<ImageEdit> | undefined, sizedByFormat = false): CSSProperties {
@@ -184,7 +186,7 @@ export function imageEditStyle(value: Partial<ImageEdit> | undefined, sizedByFor
     transformOrigin: css.position,
     objectPosition: css.position,
   };
-  for (const device of OTHER_DEVICES) {
+  for (const device of OWN_DEVICES) {
     if (!hasDeviceSettings(edit, device)) continue;
     const settings = deviceSettings(edit, device);
     const own = imageCss(settings);
@@ -196,14 +198,14 @@ export function imageEditStyle(value: Partial<ImageEdit> | undefined, sizedByFor
   return style as CSSProperties;
 }
 
-/** CSS for the box around the image: crop format and corners (a tablet's or phone's own as variables). */
+/** CSS for the box around the image: crop format and corners (a device's own as variables). */
 export function imageFrameStyle(value: Partial<ImageEdit> | undefined): CSSProperties {
   const edit = withImageDefaults(value);
   const style: Record<string, string | undefined> = {
     aspectRatio: IMAGE_ASPECTS[edit.aspect].ratio,
     borderRadius: IMAGE_RADII[edit.radius].css,
   };
-  for (const device of OTHER_DEVICES) {
+  for (const device of OWN_DEVICES) {
     if (!hasDeviceSettings(edit, device)) continue;
     const settings = deviceSettings(edit, device);
     style[`--${device}-frame-aspect`] = IMAGE_ASPECTS[settings.aspect].ratio ?? "auto";
@@ -212,18 +214,23 @@ export function imageFrameStyle(value: Partial<ImageEdit> | undefined): CSSPrope
   return style as CSSProperties;
 }
 
-/** Where each device's own settings apply: phones below 640 px (`sm`, where the Hero switches to its phone layout), tablets up to 1024 px (`lg`). */
-const DEVICE_MEDIA: Record<OtherDevice, string> = {
+/**
+ * Where each device's own settings apply: phones below 640 px (`sm`, where
+ * the Hero switches to its phone layout), tablets up to 1024 px (`lg`),
+ * computers from there.
+ */
+const DEVICE_MEDIA: Record<OwnDevice, string> = {
   phone: "not all and (min-width:40rem)",
   tablet: "(min-width:40rem) and (not (min-width:64rem))",
+  desktop: "(min-width:64rem)",
 };
 
 /**
- * Applies a tablet's or phone's own settings (the variables from
- * imageEditStyle / imageFrameStyle) at its width. !important to win over
- * the computer's inline styles. Added to every page by SiteRoot.
+ * Applies a device's own settings (the variables from imageEditStyle /
+ * imageFrameStyle) at its width. !important to win over the inline
+ * settings for all. Added to every page by SiteRoot.
  */
-export const DEVICE_IMAGE_CSS = OTHER_DEVICES.map((device) => {
+export const DEVICE_IMAGE_CSS = OWN_DEVICES.map((device) => {
   const v = (name: string) => `var(--${device}-${name})!important`;
   return (
     `@media ${DEVICE_MEDIA[device]}{` +
@@ -264,7 +271,7 @@ const asRecord = (value: unknown) => (value && typeof value === "object" ? value
 export function sanitizeImageEdit(value: unknown): ImageEdit {
   const input = withImageDefaults(asRecord(value) as Partial<ImageEdit>) as unknown as Record<string, unknown>;
   const edit = sanitizeSettings(input, false) as ImageEdit;
-  for (const device of OTHER_DEVICES) {
+  for (const device of OWN_DEVICES) {
     const own = sanitizeSettings(asRecord(input[device]), true);
     if (Object.keys(own).length > 0) edit[device] = own;
   }
