@@ -102,7 +102,7 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
       plugins={sideRailPlugins}
       viewports={viewports}
       // Start with the canvas wide open; the plus adds blocks from a dropdown,
-      // and the gear in the left rail shows the settings panel on the right.
+      // and the pencil in the left rail shows the settings panel on the right.
       ui={{
         leftSideBarVisible: false,
         rightSideBarVisible: false,
