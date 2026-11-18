@@ -36,8 +36,8 @@ html body {
 }
 
 /*
-  The plus and the pencil in the left rail take clicks on the whole item, so
-  Puck doesn't open a left panel for them (side-rail.tsx).
+  The plus in the left rail takes clicks on the whole item, so
+  Puck doesn't open a left panel for it (side-rail.tsx).
 */
 [class*="_NavItem-link_"]:has(.rail-trigger) {
   position: relative;

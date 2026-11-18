@@ -1,13 +1,11 @@
 "use client";
 
-import { blocksPlugin, createUsePuck, outlinePlugin, type Plugin, useGetPuck } from "@puckeditor/core";
+import { blocksPlugin, outlinePlugin, type Plugin, useGetPuck } from "@puckeditor/core";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { type PageConfig, pageConfig } from "@/lib/page/config";
+import { pageConfig } from "@/lib/page/config";
 import { addBlock, BLOCKS, BlockIcon } from "./block-tile";
 import { LayersPanel } from "./layers-panel";
-
-const usePuck = createUsePuck<PageConfig>();
 
 // The icons in Puck's left rail, without text labels (names show as
 // tooltips). The "blocks" item becomes a plus that opens a dropdown of
@@ -30,39 +28,7 @@ export const sideRailPlugins: Plugin[] = [
       </span>
     ),
   },
-  // Not a panel of its own: the pencil shows or hides the settings panel on
-  // the right (hidden from the start; the right-click menu covers the same
-  // settings). Puck only shows rail items that have a panel, so it gets an
-  // empty one that never opens. Desktop only: on mobile Puck adds its own
-  // settings item to the rail. (desktopOnly is read by Puck but missing
-  // from its Plugin type.)
-  { name: "settings", label: "", icon: <SettingsButton />, render: () => <></>, desktopOnly: true } as Plugin,
 ];
-
-function SettingsButton() {
-  const getPuck = useGetPuck();
-  const visible = usePuck((s) => s.appState.ui.rightSideBarVisible);
-  return (
-    <span
-      title={visible ? "Dölj inställningar" : "Visa inställningar"}
-      role="button"
-      aria-pressed={visible}
-      // Takes clicks on the whole rail item, like the plus (editor-theme.css).
-      className={`rail-trigger flex size-full items-center justify-center rounded-lg ${
-        visible ? "bg-violet-100 text-violet-800" : ""
-      }`}
-      onClick={(event) => {
-        event.stopPropagation();
-        getPuck().dispatch({ type: "setUi", ui: { rightSideBarVisible: !visible } });
-      }}
-    >
-      <RailIcon>
-        <path d="M21.17 6.81a2.83 2.83 0 0 0-4-4L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z" />
-        <path d="m15 5 4 4" />
-      </RailIcon>
-    </span>
-  );
-}
 
 function AddBlockButton() {
   const getPuck = useGetPuck();

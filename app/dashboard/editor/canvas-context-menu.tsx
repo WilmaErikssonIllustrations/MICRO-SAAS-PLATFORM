@@ -44,8 +44,9 @@ import {
   OptionRow,
   Swatch,
   TextInput,
+  Toolbar,
 } from "./context-menu-ui";
-import { PART_LABELS, partAt, setActivePart } from "./active-part";
+import { PART_LABELS, partAt, setActivePart, useActivePart } from "./active-part";
 import { layerLabel, renameLayer } from "./layers-panel";
 import { PartTracker } from "./part-fields";
 import { ResizeHandles } from "./resize-handles";
@@ -70,10 +71,54 @@ export function PreviewFrame({ children, document: doc }: { children: ReactNode;
   return (
     <>
       <CanvasContextMenu doc={doc} />
+      <SettingsToolbar doc={doc} />
       <PartTracker doc={doc} />
       <ResizeHandles doc={doc} />
       {children}
     </>
+  );
+}
+
+// Puck's bar with the Mobil/Surfplatta/Dator buttons above the canvas. Puck
+// has no override for it, so the toolbar is put into it from outside.
+const VIEWPORT_BAR = '[class*="_ViewportControls-actionsInner_"]';
+
+/** Puck's viewport bar, once it is on the page. */
+function useViewportBar() {
+  const [bar, setBar] = useState<Element | null>(null);
+  useEffect(() => {
+    const find = () => {
+      const found = document.querySelector(VIEWPORT_BAR);
+      setBar((current) => (current === found ? current : found));
+    };
+    find();
+    const observer = new MutationObserver(find);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+  return bar;
+}
+
+// The settings of the selected block (or of the clicked part of it, e.g.
+// the Hero's title), as icons with dropdowns beside the viewport buttons.
+// With nothing selected, the page's settings. Replaces Puck's side panel.
+function SettingsToolbar({ doc }: { doc?: Document }) {
+  const bar = useViewportBar();
+  const selectedId = usePuck((s) => s.selectedItem?.props.id as string | undefined);
+  const active = useActivePart();
+  if (!bar) return null;
+  const part = selectedId && active?.id === selectedId ? active.part : null;
+
+  return createPortal(
+    <div className="ml-1 flex items-center border-l border-zinc-200 pl-1">
+      {/* Keyed so an open dropdown closes when the selection changes. */}
+      <Toolbar key={`${selectedId}:${part}`} doc={doc}>
+        {(close) =>
+          selectedId ? <BlockFieldItems id={selectedId} part={part} close={close} /> : <PageFieldItems close={close} />
+        }
+      </Toolbar>
+    </div>,
+    bar,
   );
 }
 
@@ -169,13 +214,6 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
 
   const { index, zone } = selector;
   const component = puck.config.components[item.type];
-  const fields = Object.entries(component?.fields ?? {}) as [string, Field][];
-  // Fields of one part of the block (metadata.part) are all a right-click
-  // on that part shows, so a change there only affects that part. The rest
-  // apply to the whole block.
-  const partOf = (field: Field) => field.metadata?.part as string | undefined;
-  const partFields = part ? fields.filter(([, field]) => partOf(field) === part) : [];
-  const blockFields = fields.filter(([, field]) => !partOf(field));
   const count = zoneLength(puck, zone);
   const run = (action: () => void) => {
     action();
@@ -183,84 +221,19 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
   };
 
   // A right-click on a part (e.g. the hero's title) shows only that part.
-  if (partFields.length > 0) {
-    const blockName = layerLabel(puck, item);
+  if (hasPartFields(puck, item, part)) {
     return (
       <>
-        <MenuHeader>{`${blockName} › ${PART_LABELS[part ?? ""] ?? part}`}</MenuHeader>
-        {partFields.map(([name, field]) => (
-          <FieldItem
-            key={name}
-            name={name}
-            field={field}
-            value={item.props[name]}
-            block={{ id, props: item.props }}
-            optionalColor
-            onChange={(value) => updateBlockProps(getPuck(), id, { [name]: value })}
-            close={close}
-          />
-        ))}
-        <MenuDivider />
-        <MenuItem
-          label={`Alla inställningar för ${blockName}`}
-          icon={<Icon><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></Icon>}
-          onSelect={() =>
-            run(() => {
-              // The side panel then shows the whole block, not the part.
-              setActivePart(null);
-              puck.dispatch({ type: "setUi", ui: { itemSelector: selector, rightSideBarVisible: true } });
-            })
-          }
-        />
+        <MenuHeader>{`${layerLabel(puck, item)} › ${PART_LABELS[part ?? ""] ?? part}`}</MenuHeader>
+        <BlockFieldItems id={id} part={part} close={close} />
       </>
     );
-  }
-
-  // Picking Ljus/Mörk etc. should win over a custom hero color.
-  const changeField = (name: string, value: unknown) =>
-    updateBlockProps(
-      getPuck(),
-      id,
-      name === "background" && "backgroundColor" in item.props
-        ? { background: value, backgroundColor: "" }
-        : { [name]: value },
-    );
-  const fieldItem = ([name, field]: [string, Field]) => (
-    <FieldItem
-      key={name}
-      name={name}
-      field={field}
-      value={item.props[name]}
-      block={{ id, props: item.props }}
-      optionalColor
-      onChange={(value) => changeField(name, value)}
-      close={close}
-    />
-  );
-  // Grouped fields (metadata.group) become one row with a submenu each.
-  const groupOf = (field: Field) => field.metadata?.group as string | undefined;
-  const topFields = blockFields.filter(([, field]) => !groupOf(field));
-  const groups = new Map<string, [string, Field][]>();
-  for (const entry of blockFields) {
-    const group = groupOf(entry[1]);
-    if (group) groups.set(group, [...(groups.get(group) ?? []), entry]);
   }
 
   return (
     <>
       <MenuHeader>{layerLabel(puck, item)}</MenuHeader>
-      {topFields.map(fieldItem)}
-      {(groups.size > 0 || puck.getItemById(zone.split(":")[0])) && <MenuDivider />}
-      {[...groups].map(([group, entries]) => (
-        <MenuItem
-          key={group}
-          id={`group:${group}`}
-          label={GROUP_LABELS[group] ?? group}
-          icon={<Icon><rect x="4" y="5" width="16" height="14" rx="3" /><path d="M4 15l4-4 4 4 3-3 5 5" /></Icon>}
-          submenu={entries.map(fieldItem)}
-        />
-      ))}
-      <ContainerItems zone={zone} close={close} />
+      <BlockFieldItems id={id} part={null} close={close} />
       <MenuDivider />
       <MenuItem
         label="Ordna"
@@ -321,13 +294,6 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
           </>
         }
       />
-      <MenuItem
-        label="Alla inställningar"
-        icon={<Icon><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></Icon>}
-        onSelect={() =>
-          run(() => puck.dispatch({ type: "setUi", ui: { itemSelector: selector, rightSideBarVisible: true } }))
-        }
-      />
       <MenuDivider />
       <MenuItem
         label="Ta bort"
@@ -344,11 +310,104 @@ function BlockMenu({ id, part, close }: { id: string; part: string | null; close
   );
 }
 
+/** Whether a block has settings of its own for `part` (metadata.part). */
+function hasPartFields(puck: PuckApi, item: ComponentData, part: string | null) {
+  if (!part) return false;
+  const fields = Object.values(puck.config.components[item.type]?.fields ?? {}) as Field[];
+  return fields.some((field) => field.metadata?.part === part);
+}
+
+/**
+ * A block's settings, as menu rows (or toolbar buttons, see Toolbar):
+ * only the fields of `part` when it has any (e.g. the Hero's title), so a
+ * change there only affects that part; otherwise the whole block's
+ * fields, grouped fields (metadata.group) as one item each, and the
+ * container's settings.
+ */
+export function BlockFieldItems({ id, part, close }: { id: string; part: string | null; close: () => void }) {
+  const getPuck = useGetPuck();
+  // Re-render on every change so the items show current values.
+  usePuck((s) => s.appState.data);
+  const puck = getPuck();
+  const item = puck.getItemById(id);
+  const selector = puck.getSelectorForId(id);
+  if (!item || !selector) return null;
+
+  const fields = Object.entries(puck.config.components[item.type]?.fields ?? {}) as [string, Field][];
+  const partOf = (field: Field) => field.metadata?.part as string | undefined;
+  const onPart = hasPartFields(puck, item, part);
+  const shown = fields.filter(([, field]) => (onPart ? partOf(field) === part : !partOf(field)));
+
+  // Picking Ljus/Mörk etc. should win over a custom hero color.
+  const changeField = (name: string, value: unknown) =>
+    updateBlockProps(
+      getPuck(),
+      id,
+      name === "background" && "backgroundColor" in item.props
+        ? { background: value, backgroundColor: "" }
+        : { [name]: value },
+    );
+  const fieldItem = ([name, field]: [string, Field]) => (
+    <FieldItem
+      key={name}
+      name={name}
+      field={field}
+      value={item.props[name]}
+      block={{ id, props: item.props }}
+      optionalColor
+      onChange={(value) => changeField(name, value)}
+      close={close}
+    />
+  );
+  if (onPart) return <>{shown.map(fieldItem)}</>;
+
+  const groupOf = (field: Field) => field.metadata?.group as string | undefined;
+  const topFields = shown.filter(([, field]) => !groupOf(field));
+  const groups = new Map<string, [string, Field][]>();
+  for (const entry of shown) {
+    const group = groupOf(entry[1]);
+    if (group) groups.set(group, [...(groups.get(group) ?? []), entry]);
+  }
+  const { zone } = selector;
+
+  return (
+    <>
+      {topFields.map(fieldItem)}
+      {(groups.size > 0 || puck.getItemById(zone.split(":")[0])) && <MenuDivider />}
+      {[...groups].map(([group, entries]) => (
+        <MenuItem
+          key={group}
+          id={`group:${group}`}
+          label={GROUP_LABELS[group] ?? group}
+          icon={<Icon><rect x="4" y="5" width="16" height="14" rx="3" /><path d="M4 15l4-4 4 4 3-3 5 5" /></Icon>}
+          submenu={entries.map(fieldItem)}
+        />
+      ))}
+      <ContainerItems zone={zone} close={close} />
+    </>
+  );
+}
+
+/** The page's own settings (Puck's root fields), as menu rows or toolbar buttons. */
+export function PageFieldItems({ close }: { close: () => void }) {
+  const getPuck = useGetPuck();
+  const data = usePuck((s) => s.appState.data);
+  const fields = Object.entries(getPuck().config.root?.fields ?? {}) as [string, Field][];
+  return fields.map(([name, field]) => (
+    <FieldItem
+      key={name}
+      name={name}
+      field={field}
+      value={(data.root.props as Record<string, unknown> | undefined)?.[name]}
+      onChange={(value) => updateRootProps(getPuck(), { [name]: value })}
+      close={close}
+    />
+  ));
+}
+
 function PageMenu({ close }: { close: () => void }) {
   const getPuck = useGetPuck();
   const data = usePuck((s) => s.appState.data);
-  const puck = getPuck();
-  const fields = Object.entries(puck.config.root?.fields ?? {}) as [string, Field][];
   const end = data.content.length;
   const run = (action: () => void) => {
     action();
@@ -358,16 +417,7 @@ function PageMenu({ close }: { close: () => void }) {
   return (
     <>
       <MenuHeader>Sida</MenuHeader>
-      {fields.map(([name, field]) => (
-        <FieldItem
-          key={name}
-          name={name}
-          field={field}
-          value={(data.root.props as Record<string, unknown> | undefined)?.[name]}
-          onChange={(value) => updateRootProps(getPuck(), { [name]: value })}
-          close={close}
-        />
-      ))}
+      <PageFieldItems close={close} />
       <MenuDivider />
       <MenuItem
         label="Lägg till block"
@@ -543,7 +593,7 @@ function FieldItem({
         <MenuItem
           id={name}
           label={label}
-          icon={<Icon><path d="M4 7h16M4 12h10M4 17h6" /></Icon>}
+          icon={selectIcon(name, value)}
           hint={current?.label}
           submenu={field.options.map((option) => (
             <OptionRow
@@ -729,6 +779,44 @@ function FieldItem({
     }
     default:
       return null;
+  }
+}
+
+/**
+ * An icon for a choice field, by its prop name, so toolbar buttons (which
+ * have no text) can be told apart. Alignment shows the current value.
+ */
+function selectIcon(name: string, value: unknown): ReactNode {
+  if (name === "align" || name.endsWith("Align")) {
+    if (value === "center") return <Icon><path d="M4 6h16M7 12h10M5 18h14" /></Icon>;
+    if (value === "right") return <Icon><path d="M4 6h16M10 12h10M6 18h14" /></Icon>;
+    return <Icon><path d="M4 6h16M4 12h10M4 18h14" /></Icon>;
+  }
+  switch (name) {
+    case "imageFit":
+      return <Icon><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 4v16M16 4v16" /></Icon>;
+    case "mobileFit":
+      return <Icon><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2" /></Icon>;
+    case "heroHeightUnit":
+      return <Icon><path d="M4 16 16 4l4 4L8 20zM7.5 12.5l2 2M10.5 9.5l2 2M13.5 6.5l2 2" /></Icon>;
+    case "overlay":
+      return <Icon><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 16 16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="currentColor" /></Icon>;
+    case "background":
+      return <Icon><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" /></Icon>;
+    case "level":
+      return <Icon><path d="M5 5v14M15 5v14M5 12h10M19 19v-6l-2 1.5" /></Icon>;
+    case "decoration":
+      return <Icon><path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14" /></Icon>;
+    case "width":
+      return <Icon><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" /></Icon>;
+    case "variant":
+      return <Icon><rect x="3" y="7" width="18" height="10" rx="5" /></Icon>;
+    case "count":
+      return <Icon><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></Icon>;
+    case "size":
+      return <Icon><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" /></Icon>;
+    default:
+      return <Icon><path d="M4 7h16M4 12h10M4 17h6" /></Icon>;
   }
 }
 

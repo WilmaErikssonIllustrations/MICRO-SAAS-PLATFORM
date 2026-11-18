@@ -7,10 +7,12 @@ import {
   type ReactNode,
   type Ref,
   useContext,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { ACCEPTED_IMAGE_TYPES, useImageUpload } from "@/components/page-blocks/use-upload";
 
 // Building blocks for the editor's right-click menu: a menu panel, rows
@@ -29,6 +31,8 @@ type MenuContextValue = {
   /** The left edge of the top menu, and how deep this level is. */
   left: number;
   depth: number;
+  /** In a Toolbar, rows are icon buttons that open a dropdown below. */
+  toolbar?: boolean;
 };
 const MenuContext = createContext<MenuContextValue>({ openId: null, setOpenId: () => {}, left: 0, depth: 0 });
 
@@ -85,6 +89,7 @@ export function Menu({
 }
 
 export function MenuHeader({ children }: { children: ReactNode }) {
+  if (useContext(MenuContext).toolbar) return null;
   return (
     <div className="px-2.5 pt-1 pb-1.5 text-xs font-semibold tracking-wide text-zinc-400 uppercase">
       {children}
@@ -93,7 +98,126 @@ export function MenuHeader({ children }: { children: ReactNode }) {
 }
 
 export function MenuDivider() {
+  if (useContext(MenuContext).toolbar) return <div className="mx-1 h-5 w-px shrink-0 bg-zinc-200" />;
   return <div className="mx-1 my-1 h-px bg-zinc-100" />;
+}
+
+/**
+ * A row of icon buttons built from the same MenuItems as the menus: each
+ * opens its submenu as a dropdown below the button. `doc` is the preview
+ * iframe's document, so clicks in the page close the dropdown too.
+ */
+export function Toolbar({ doc, children }: { doc?: Document | null; children: (close: () => void) => ReactNode }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openId) return;
+    const close = () => setOpenId(null);
+    const onPointerDown = (event: Event) => {
+      const target = event.target as Element | null;
+      if (rootRef.current?.contains(target) || target?.closest?.("[data-toolbar-dropdown]")) return;
+      close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && close();
+    // Capture phase: Puck's inline text fields stop events from bubbling.
+    const targets: Document[] = doc ? [document, doc] : [document];
+    targets.forEach((t) => {
+      t.addEventListener("pointerdown", onPointerDown, true);
+      t.addEventListener("keydown", onKeyDown, true);
+    });
+    window.addEventListener("resize", close);
+    return () => {
+      targets.forEach((t) => {
+        t.removeEventListener("pointerdown", onPointerDown, true);
+        t.removeEventListener("keydown", onKeyDown, true);
+      });
+      window.removeEventListener("resize", close);
+    };
+  }, [openId, doc]);
+
+  return (
+    <MenuContext.Provider value={{ openId, setOpenId, left: 0, depth: -1, toolbar: true }}>
+      {/* Puck's canvas deselects the block on clicks that bubble up to it. */}
+      <div
+        ref={rootRef}
+        role="toolbar"
+        aria-label="Inställningar"
+        className="flex items-center gap-0.5"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {children(() => setOpenId(null))}
+      </div>
+    </MenuContext.Provider>
+  );
+}
+
+function ToolbarButton({ id, label, icon, hint, disabled, danger, onSelect, submenu, scrollable }: MenuItemProps) {
+  const { openId, setOpenId } = useContext(MenuContext);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const key = id ?? label;
+  const open = submenu !== undefined && openId === key && anchor !== null;
+  const title = typeof hint === "string" && hint ? `${label}: ${hint}` : label;
+
+  return (
+    <>
+      <button
+        type="button"
+        title={title}
+        aria-label={label}
+        aria-haspopup={submenu !== undefined || undefined}
+        aria-expanded={submenu !== undefined ? open : undefined}
+        disabled={disabled}
+        onClick={(event) => {
+          if (submenu === undefined) {
+            setOpenId(null);
+            onSelect?.();
+            return;
+          }
+          setAnchor(event.currentTarget.getBoundingClientRect());
+          setOpenId(open ? null : key);
+        }}
+        className={`flex size-8 shrink-0 items-center justify-center rounded-lg disabled:cursor-default disabled:opacity-40 ${
+          danger
+            ? "text-red-600 hover:bg-red-50"
+            : `hover:bg-violet-50 hover:text-violet-900 ${open ? "bg-violet-100 text-violet-900" : "text-zinc-600"}`
+        }`}
+      >
+        {icon}
+      </button>
+      {open && (
+        <Dropdown anchor={anchor} scrollable={scrollable}>
+          {submenu}
+        </Dropdown>
+      )}
+    </>
+  );
+}
+
+/** A toolbar button's dropdown, in the page so the toolbar can't clip it. */
+function Dropdown({ anchor, scrollable, children }: { anchor: DOMRect; scrollable?: boolean; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const left = Math.max(EDGE, Math.min(anchor.left, window.innerWidth - MENU_WIDTH - EDGE));
+  useLayoutEffect(() => keepInWindow(ref.current), []);
+  // Scrolling would clip nested submenus, so only long lists scroll.
+  return createPortal(
+    <MenuContext.Provider value={{ openId, setOpenId, left, depth: 0 }}>
+      <div
+        ref={ref}
+        role="menu"
+        data-toolbar-dropdown
+        style={{ left, top: anchor.bottom + 6, width: MENU_WIDTH }}
+        className={`fixed z-1000 rounded-xl border border-zinc-200 bg-white p-1.5 text-sm text-zinc-800 shadow-2xl ${
+          scrollable ? "max-h-[70vh] overflow-y-auto" : ""
+        }`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {children}
+      </div>
+    </MenuContext.Provider>,
+    document.body,
+  );
 }
 
 type MenuItemProps = {
@@ -112,7 +236,12 @@ type MenuItemProps = {
   scrollable?: boolean;
 };
 
-export function MenuItem({ id, label, icon, hint, disabled, danger, onSelect, submenu, scrollable }: MenuItemProps) {
+export function MenuItem(props: MenuItemProps) {
+  if (useContext(MenuContext).toolbar) return <ToolbarButton {...props} />;
+  return <MenuRow {...props} />;
+}
+
+function MenuRow({ id, label, icon, hint, disabled, danger, onSelect, submenu, scrollable }: MenuItemProps) {
   const { openId, setOpenId, left, depth } = useContext(MenuContext);
   const key = id ?? label;
   const open = submenu !== undefined && openId === key;

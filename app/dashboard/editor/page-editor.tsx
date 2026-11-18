@@ -102,7 +102,8 @@ export function PageEditor({ publishedData, draftData, siteUrl }: PageEditorProp
       plugins={sideRailPlugins}
       viewports={viewports}
       // Start with the canvas wide open; the plus adds blocks from a dropdown,
-      // and the pencil in the left rail shows the settings panel on the right.
+      // and settings are icons beside the viewport buttons (canvas-context-menu.tsx),
+      // so Puck's settings panel on the right stays hidden.
       ui={{
         leftSideBarVisible: false,
         rightSideBarVisible: false,
