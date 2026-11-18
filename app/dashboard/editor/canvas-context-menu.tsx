@@ -743,6 +743,27 @@ function FieldItem({
         );
       }
       if (kind === "image") {
+        // The block's image editing for this image (an imageEdit field with
+        // metadata.imageProp = this prop) is offered in the same dropdown.
+        const editEntry =
+          block && imageEditor && text
+            ? (Object.entries(getPuck().config.components[getPuck().getItemById(block.id)?.type ?? ""]?.fields ?? {}) as [
+                string,
+                Field,
+              ][]).find(([, f]) => f.metadata?.kind === "imageEdit" && f.metadata?.imageProp === name)
+            : undefined;
+        const openEditor =
+          editEntry && block && imageEditor
+            ? () => {
+                imageEditor.open({
+                  blockId: block.id,
+                  imageProp: name,
+                  editProp: editEntry[0],
+                  background: Boolean(editEntry[1].metadata?.background),
+                });
+                close();
+              }
+            : undefined;
         return (
           <MenuItem
             id={name}
@@ -752,6 +773,7 @@ function FieldItem({
             submenu={
               <ImageActions
                 hasImage={!!text}
+                onEdit={openEditor}
                 onChange={(url) => {
                   onChange(url);
                   close();
@@ -761,28 +783,8 @@ function FieldItem({
           />
         );
       }
-      if (kind === "imageEdit") {
-        const imageProp = field.metadata?.imageProp as string;
-        const hasImage = Boolean(block?.props[imageProp]);
-        // Only offered once there is an image to edit.
-        if (!block || !imageEditor || !hasImage) return null;
-        return (
-          <MenuItem
-            id={name}
-            label={`${label}...`}
-            icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
-            onSelect={() => {
-              imageEditor.open({
-                blockId: block.id,
-                imageProp,
-                editProp: name,
-                background: Boolean(field.metadata?.background),
-              });
-              close();
-            }}
-          />
-        );
-      }
+      // Image editing is in its image's dropdown (see kind "image").
+      if (kind === "imageEdit") return null;
       if (kind === "typography") {
         const typography = value as Partial<Typography> | undefined;
         const basePx = resolveBasePx(field.metadata as TypographyMetadata, block?.props);

@@ -644,8 +644,17 @@ export function NumberUnitInput({
   );
 }
 
-/** Upload or remove an image. */
-export function ImageActions({ hasImage, onChange }: { hasImage: boolean; onChange: (url: string) => void }) {
+/** Upload, edit or remove an image. */
+export function ImageActions({
+  hasImage,
+  onChange,
+  onEdit,
+}: {
+  hasImage: boolean;
+  onChange: (url: string) => void;
+  /** Opens the image editor; the row shows when there is an image. */
+  onEdit?: () => void;
+}) {
   const { upload, uploading, error } = useImageUpload();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -669,6 +678,17 @@ export function ImageActions({ hasImage, onChange }: { hasImage: boolean; onChan
         }
         onSelect={() => inputRef.current?.click()}
       />
+      {hasImage && onEdit && (
+        <ActionRow
+          label="Redigera bild..."
+          icon={
+            <Icon>
+              <path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" />
+            </Icon>
+          }
+          onSelect={onEdit}
+        />
+      )}
       {hasImage && (
         <ActionRow
           label="Ta bort bild"
