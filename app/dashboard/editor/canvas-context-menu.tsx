@@ -626,6 +626,10 @@ function FieldItem({
   // image settings (metadata.needs: "image") once it has an image.
   const needs = field.metadata?.needs as string | undefined;
   if (needs && block && !block.props[needs]) return null;
+  // ...or with other settings at given values (metadata.showWhen), e.g.
+  // the color under the hero's image only with "Bilden ovanför texten".
+  const showWhen = field.metadata?.showWhen as Record<string, unknown> | undefined;
+  if (showWhen && block && Object.entries(showWhen).some(([prop, wanted]) => block.props[prop] !== wanted)) return null;
 
   switch (field.type) {
     case "number": {

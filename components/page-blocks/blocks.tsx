@@ -167,6 +167,8 @@ export type HeroProps = {
    * Missing on older pages, which then show the whole image too.
    */
   mobileFit: "whole" | "stack" | "same";
+  /** Behind the text when the image is above it on phones; empty is dark. Missing on older pages (handled). */
+  stackColor: string;
   /**
    * Settings for one part of the hero (`data-part` below), so the title,
    * subtitle and button can be changed on their own. Empty follows the hero.
@@ -287,6 +289,7 @@ export function Hero({
   heroHeightUnit,
   imageFit,
   mobileFit,
+  stackColor,
   titleAlign,
   subtitleAlign,
   ctaAlign,
@@ -365,9 +368,18 @@ export function Hero({
       )}
       {imageControls && <HoverControls>{imageControls}</HoverControls>}
       <div
+        // On phones with the image above the text: the chosen color behind the
+        // text (own variables, so the button's --accent colors are untouched).
+        style={
+          phone === "stack" && stackColor
+            ? ({ "--stack-bg": stackColor, "--stack-fg": getContrastText(stackColor) } as CSSProperties)
+            : undefined
+        }
         className={`mx-auto flex w-full max-w-5xl flex-col justify-center px-6 ${heroPhoneLayout[phone].content} ${
           heroDesktopLayout[desktop].content
-        } ${contentHeight} ${alignClass[align]}`}
+        } ${contentHeight} ${alignClass[align]} ${
+          phone === "stack" && stackColor ? "max-sm:bg-(--stack-bg) max-sm:text-(--stack-fg)" : ""
+        }`}
       >
         <h1
           data-resize-box

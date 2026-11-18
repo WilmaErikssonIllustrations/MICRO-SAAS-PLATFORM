@@ -308,6 +308,11 @@ export const pageConfig: PageConfig = {
             { label: "Samma som på datorn", value: "same" },
           ],
         },
+        // Behind the text when the image is above it on phones; only shown then.
+        stackColor: {
+          ...colorField("Bakgrund under bilden på mobil"),
+          metadata: { kind: "color", group: "heroBackground", needs: "image", showWhen: { mobileFit: "stack" } },
+        },
         heroHeightUnit: {
           metadata: { group: "heroBackground" },
           type: "radio",
@@ -408,6 +413,7 @@ export const pageConfig: PageConfig = {
         overlay: "none",
         imageFit: "cover",
         mobileFit: "whole",
+        stackColor: "",
         titleAlign: "",
         subtitleAlign: "",
         ctaAlign: "",
