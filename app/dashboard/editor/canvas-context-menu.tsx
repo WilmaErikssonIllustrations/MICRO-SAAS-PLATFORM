@@ -762,7 +762,6 @@ function FieldItem({
           <MenuItem
             id={name}
             label={`${label}...`}
-            face={label}
             icon={<Icon><path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4" /></Icon>}
             onSelect={() => {
               imageEditor.open({
