@@ -74,11 +74,13 @@ model Website {
   subdomain    String  @unique
   customDomain String? @unique
 
-  // Site name, mirrored from the page's root props for metadata and lists.
+  // Site name, shared by every page (their root `title` prop).
   title     String
-  // The published page built in the Puck editor (root props + blocks).
+  // Uploaded fonts, shared by every page (their root `customFonts` prop).
+  fonts     Json     @default("[]")
+  // No longer used: the site's single page from before `Page`. Kept so
+  // nothing is lost; its content was copied to the site's start page.
   data      Json     @default("{}")
-  // Saved but unpublished edits; null when the editor matches `data`.
   draft     Json?
   published Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -86,6 +88,32 @@ model Website {
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pages  Page[]
 
   @@index([userId])
+}
+
+// One page of a website, built in the Puck editor. The start page has the
+// slug "" (the site's root); other pages live at /<slug>. "Publicera"
+// publishes every page of the site at once.
+model Page {
+  id        String   @id @default(cuid())
+  // "" for the start page, else lowercase words joined by "-".
+  slug      String
+  // The page's name in the editor, and its title in the browser.
+  title     String
+  // The published page (root props + blocks); {} until first published.
+  data      Json     @default("{}")
+  // Saved but unpublished edits; null when the editor matches `data`.
+  draft     Json?
+  // Order in the editor's page list.
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  websiteId String
+  website   Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, slug])
+  @@index([websiteId])
 }
