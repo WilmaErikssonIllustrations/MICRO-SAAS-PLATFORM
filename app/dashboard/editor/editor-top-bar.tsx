@@ -4,6 +4,7 @@ import { createUsePuck, useGetPuck } from "@puckeditor/core";
 import { type ReactNode, useRef, useState } from "react";
 import type { EditorActionResult } from "@/actions/website";
 import { updateRootProps } from "@/components/page-blocks/update-block";
+import { PageSwitcher } from "./pages";
 import type { PageConfig, PageData } from "@/lib/page/config";
 
 const usePuck = createUsePuck<PageConfig>();
@@ -50,7 +51,12 @@ export function EditorTopBar({ onSave, onPublish, ...status }: EditorTopBarProps
         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-bold text-white">
           {(title || "W").trim().charAt(0).toUpperCase()}
         </span>
+        {/* The site's name (shared by its pages), then the page being edited. */}
         <PageName title={title ?? ""} onRename={(name) => updateRootProps(getPuck(), { title: name })} />
+        <span aria-hidden className="-mx-1.5 text-zinc-300">
+          ›
+        </span>
+        <PageSwitcher siteUrl={status.siteUrl} />
       </div>
 
       <div className="flex items-center gap-1">
@@ -88,7 +94,7 @@ export function EditorTopBar({ onSave, onPublish, ...status }: EditorTopBarProps
   );
 }
 
-/** The page name; a click turns it into a field. Enter or leaving saves, Esc cancels. */
+/** The site's name; a click turns it into a field. Enter or leaving saves, Esc cancels. */
 function PageName({ title, onRename }: { title: string; onRename: (name: string) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
   const cancelled = useRef(false);
@@ -97,7 +103,7 @@ function PageName({ title, onRename }: { title: string; onRename: (name: string)
     return (
       <button
         type="button"
-        title="Byt namn på sidan"
+        title="Byt namn på webbplatsen"
         onClick={() => {
           cancelled.current = false;
           setDraft(title);
@@ -120,7 +126,7 @@ function PageName({ title, onRename }: { title: string; onRename: (name: string)
   return (
     <input
       autoFocus
-      aria-label="Sidans namn"
+      aria-label="Webbplatsens namn"
       value={draft}
       maxLength={80}
       onChange={(event) => setDraft(event.target.value)}

@@ -22,6 +22,7 @@ import {
 import { ACCEPTED_FONT_TYPES, useFontUpload } from "@/components/page-blocks/use-upload";
 import type { Box } from "@/lib/page/box";
 import type { PageConfig } from "@/lib/page/config";
+import { linkedPageId, pageLink } from "@/lib/page/links";
 import type { TextStyle } from "@/lib/page/text-style";
 import { TYPOGRAPHY_RANGES, type Typography, withTypographyDefaults } from "@/lib/page/typography";
 import {
@@ -51,6 +52,7 @@ import {
 } from "./context-menu-ui";
 import { PART_LABELS, partAt, setActivePart, useActivePart } from "./active-part";
 import { allBlocks, layerLabel, renameLayer } from "./layers-panel";
+import { type EditorPage, usePages } from "./pages";
 import { PartTracker } from "./part-fields";
 import { ResizeHandles } from "./resize-handles";
 
@@ -617,6 +619,7 @@ function FieldItem({
   const getPuck = useGetPuck();
   const imageEditor = useImageEditor();
   const inToolbar = useInToolbar();
+  const { pages } = usePages();
   // "Bakgrundsbild (valfri)" -> "Bakgrundsbild": the menu is narrow. A
   // field can also give a shorter menu label of its own.
   const label = (field.metadata?.menuLabel as string | undefined) ?? (field.label ?? name).replace(/\s*\(.*\)$/, "");
@@ -713,7 +716,7 @@ function FieldItem({
               <Icon><path d="M5 6h14M12 6v13" /></Icon>
             )
           }
-          hint={kind === "url" ? linkHint(getPuck(), text) : text || "–"}
+          hint={kind === "url" ? linkHint(getPuck(), pages, text) : text || "–"}
           scrollable={kind === "url"}
           submenu={
             kind === "url" ? (
@@ -1105,25 +1108,45 @@ function TextStyleButtons({
   ));
 }
 
-/** Where a link goes, short: "→ <block>" for a block on the page, else nothing. */
-function linkHint(puck: PuckApi, href: string) {
+/** Where a link goes, short: "→ <page>" or "→ <block>" for this site, else nothing. */
+function linkHint(puck: PuckApi, pages: EditorPage[], href: string) {
+  const pageId = linkedPageId(href);
+  if (pageId !== null) return `→ ${pages.find((page) => page.id === pageId)?.title ?? "borttagen sida"}`;
   if (!href.startsWith("#") || href.length < 2) return undefined;
   const item = puck.getItemById(href.slice(1));
   return item ? `→ ${layerLabel(puck, item)}` : undefined;
 }
 
 /**
- * A link: an address (https://, mailto:...), or a block on the same page
- * ("#<block id>"; every block is rendered with its id, see config.tsx).
+ * A link: an address (https://, mailto:...), another page of the site
+ * ("page:<id>", turned into its URL on the published site, see
+ * lib/page/links.ts) or a block on the same page ("#<block id>"; every
+ * block is rendered with its id, see config.tsx).
  */
 function LinkPicker({ value, ownId, onSave }: { value: string; ownId?: string; onSave: (href: string) => void }) {
   const getPuck = useGetPuck();
   usePuck((s) => s.appState.data);
+  const { pageId, pages } = usePages();
   const blocks = allBlocks(getPuck()).filter((b) => b.id !== ownId);
-  const isBlock = value.startsWith("#") && value.length > 1;
+  const onSite = (value.startsWith("#") && value.length > 1) || linkedPageId(value) !== null;
+  const otherPages = pages.filter((page) => page.id !== pageId);
   return (
     <>
-      <TextInput value={isBlock ? "" : value} placeholder="https://... eller mailto:..." onSave={onSave} />
+      <TextInput value={onSite ? "" : value} placeholder="https://... eller mailto:..." onSave={onSave} />
+      {otherPages.length > 0 && (
+        <>
+          <MenuDivider />
+          <MenuHeader>Sidor</MenuHeader>
+          {otherPages.map((page) => (
+            <OptionRow
+              key={page.id}
+              label={page.title}
+              selected={value === pageLink(page.id)}
+              onSelect={() => onSave(pageLink(page.id))}
+            />
+          ))}
+        </>
+      )}
       <MenuDivider />
       <MenuHeader>Del av sidan</MenuHeader>
       {blocks.map((b) => (
