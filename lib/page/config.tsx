@@ -32,6 +32,7 @@ import { ImageField } from "@/components/page-blocks/image-field";
 import { type Box, DEFAULT_BOX } from "@/lib/page/box";
 import type { CustomFont } from "@/lib/page/fonts";
 import { DEFAULT_IMAGE_EDIT, type ImageEdit } from "@/lib/page/image-edit";
+import { type PageLinkMetadata, resolveHref } from "@/lib/page/links";
 import { TEXT_EFFECTS, type TextEffect } from "@/lib/page/text-effect";
 import { DEFAULT_TEXT_STYLE, type TextStyle } from "@/lib/page/text-style";
 import { DEFAULT_TYPOGRAPHY, type Typography } from "@/lib/page/typography";
@@ -442,6 +443,8 @@ export const pageConfig: PageConfig = {
       render: ({ puck, ...props }) => (
         <Hero
           {...props}
+          // A link to another page ("page:<id>") becomes its URL.
+          ctaLink={resolveHref(props.ctaLink, puck.metadata as PageLinkMetadata)}
           imageControls={
             puck.isEditing && (
               <CanvasImagePicker
@@ -625,7 +628,8 @@ export const pageConfig: PageConfig = {
         textStyle: DEFAULT_TEXT_STYLE,
         effect: "",
       },
-      render: (props) => withBackground(props, <Button {...props} />),
+      render: ({ puck, ...props }) =>
+        withBackground(props, <Button {...props} href={resolveHref(props.href, puck.metadata as PageLinkMetadata)} />),
     },
     Columns: {
       label: "Kolumner",

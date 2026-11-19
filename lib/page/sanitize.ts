@@ -5,6 +5,7 @@ import { type PageData, pageConfig } from "@/lib/page/config";
 import { type CustomFont, isFontValue, isValidFontName } from "@/lib/page/fonts";
 import { sanitizeBox } from "@/lib/page/box";
 import { sanitizeImageEdit } from "@/lib/page/image-edit";
+import { isPageLink } from "@/lib/page/links";
 import { sanitizeTextStyle } from "@/lib/page/text-style";
 import { sanitizeTypography } from "@/lib/page/typography";
 import { isStoredFontUrl, isStoredImageUrl } from "@/lib/storage";
@@ -33,8 +34,9 @@ const RICHTEXT_OPTIONS: sanitizeHtml.IOptions = {
 };
 
 export function isSafeUrl(value: string) {
-  // In-page anchors such as #kontakt are fine too.
-  if (/^#[\w-]*$/.test(value)) return true;
+  // In-page anchors such as #kontakt are fine too, and links to another
+  // page of the site ("page:<id>", see lib/page/links.ts).
+  if (/^#[\w-]*$/.test(value) || isPageLink(value)) return true;
   try {
     return ["http:", "https:", "mailto:", "tel:"].includes(new URL(value).protocol);
   } catch {

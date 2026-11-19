@@ -2,7 +2,8 @@ import "server-only";
 import { cacheLife, cacheTag, updateTag } from "next/cache";
 import { hostTag, matchHost, suggestSubdomain, websiteHostnames } from "@/lib/domains";
 import type { Prisma } from "@/generated/prisma/client";
-import { type PageData, starterPage } from "@/lib/page/config";
+import { type PageData, isEmptyPage, starterPage } from "@/lib/page/config";
+import type { CustomFont } from "@/lib/page/fonts";
 import { prisma } from "@/lib/prisma";
 
 export const websiteTag = (id: string) => `website-${id}`;
@@ -18,7 +19,7 @@ export async function getUserWebsite(userId: string) {
   });
 }
 
-/** Every user gets an unpublished starter website (their tenant) on sign-up. */
+/** Every user gets an unpublished starter website (their tenant), with a start page, on sign-up. */
 export async function createWebsiteForUser(user: { id: string; email: string }) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const subdomain = suggestSubdomain(user.email);
@@ -26,7 +27,12 @@ export async function createWebsiteForUser(user: { id: string; email: string }) 
     if (taken) continue;
 
     return prisma.website.create({
-      data: { userId: user.id, subdomain, title: "Min hemsida", data: pageToJson(starterPage()) },
+      data: {
+        userId: user.id,
+        subdomain,
+        title: "Min hemsida",
+        pages: { create: { slug: "", title: "Startsida", draft: pageToJson(starterPage()) } },
+      },
     });
   }
   throw new Error("Could not find a free subdomain");
@@ -36,12 +42,36 @@ export async function getOrCreateUserWebsite(user: { id: string; email: string }
   return (await getUserWebsite(user.id)) ?? createWebsiteForUser(user);
 }
 
+/** A website's pages in the editor's order, the start page first. */
+export async function listPages(websiteId: string) {
+  const pages = await prisma.page.findMany({
+    where: { websiteId },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    select: { id: true, slug: true, title: true, draft: true },
+  });
+  return pages
+    .map(({ draft, ...page }) => ({ ...page, hasDraft: draft !== null }))
+    .sort((a, b) => Number(b.slug === "") - Number(a.slug === ""));
+}
+
+export type PageSummary = Awaited<ReturnType<typeof listPages>>[number];
+
+/** The site-wide root props (its name and uploaded fonts) put into one page's data. */
+export function withSiteRoot(data: PageData, website: { title: string; fonts: unknown }): PageData {
+  const fonts = Array.isArray(website.fonts) ? (website.fonts as CustomFont[]) : [];
+  return { ...data, root: { ...data.root, props: { ...data.root.props!, title: website.title, customFonts: fonts } } };
+}
+
+/** The page stored data or a draft as PageData, or null for none. */
+export const storedPage = (value: unknown) => (isEmptyPage(value) ? null : (value as PageData));
+
 /**
- * Looks up the published website for a request hostname (subdomain or
- * custom domain). Cached for visitors and tagged both by hostname and by
- * website, so saving or re-pointing a site shows up immediately.
+ * Looks up a published page for a request hostname (subdomain or custom
+ * domain) and slug ("" for the start page), with every live page's slug
+ * so links between pages can be resolved. Cached for visitors and tagged
+ * both by hostname and by website, so publishing shows up immediately.
  */
-export async function getPublishedWebsiteByHost(hostname: string) {
+export async function getPublishedPage(hostname: string, slug: string) {
   "use cache";
   cacheLife("hours");
   cacheTag(hostTag(hostname));
@@ -54,10 +84,20 @@ export async function getPublishedWebsiteByHost(hostname: string) {
       match.kind === "subdomain"
         ? { subdomain: match.subdomain, published: true }
         : { customDomain: match.domain, published: true },
+    include: { pages: { select: { id: true, slug: true, title: true, data: true } } },
   });
+  if (!website) return null;
+  cacheTag(websiteTag(website.id));
 
-  if (website) cacheTag(websiteTag(website.id));
-  return website;
+  // Pages that have been published (a new page is live once the site is published again).
+  const live = website.pages.filter((page) => storedPage(page.data));
+  const page = live.find((p) => p.slug === slug);
+  if (!page) return null;
+  return {
+    siteTitle: website.title,
+    page: { title: page.title, slug: page.slug, data: page.data as unknown as PageData },
+    slugs: Object.fromEntries(live.map((p) => [p.id, p.slug])),
+  };
 }
 
 /** Expires cached public pages for a website on all of its hostnames. */

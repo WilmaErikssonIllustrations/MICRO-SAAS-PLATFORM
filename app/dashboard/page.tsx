@@ -8,7 +8,7 @@ import {
   platformSiteUrl,
   usesPathRouting,
 } from "@/lib/domains";
-import { getOrCreateUserWebsite } from "@/lib/websites";
+import { getOrCreateUserWebsite, listPages } from "@/lib/websites";
 import { PublishedLink } from "./_components/published-link";
 import { SiteSettingsForm } from "./_components/site-settings-form";
 
@@ -63,6 +63,7 @@ async function AccountMenu() {
 async function Overview() {
   const user = await requireUser();
   const website = await getOrCreateUserWebsite(user);
+  const pages = await listPages(website.id);
 
   const publicUrls = [platformSiteUrl(website.subdomain)];
   if (website.customDomain) publicUrls.push(`https://${website.customDomain}`);
@@ -76,9 +77,9 @@ async function Overview() {
             <p className="mt-1 text-sm text-zinc-600">
               {website.published
                 ? "Publicerad. Ändringar syns när du publicerar igen i editorn."
-                : "Inte publicerad än. Öppna editorn och klicka på Publish."}
+                : "Inte publicerad än. Öppna editorn och klicka på Publicera."}
             </p>
-            {website.draft !== null && (
+            {pages.some((page) => page.hasDraft) && (
               <p className="mt-1 text-sm font-medium text-amber-700">
                 Du har sparade ändringar som inte är publicerade.
               </p>
@@ -94,7 +95,7 @@ async function Overview() {
             href="/dashboard/editor"
             className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700"
           >
-            Redigera sidan
+            Redigera webbplatsen
           </a>
         </div>
         {website.published && <PublishedLink urls={publicUrls} />}

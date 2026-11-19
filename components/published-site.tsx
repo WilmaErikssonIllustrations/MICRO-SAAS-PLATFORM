@@ -1,23 +1,52 @@
 import { Render } from "@puckeditor/core/rsc";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { type PageData, pageConfig } from "@/lib/page/config";
-import { getPublishedWebsiteByHost } from "@/lib/websites";
+import { pageConfig } from "@/lib/page/config";
+import { type PageLinkMetadata, pagePath } from "@/lib/page/links";
+import { getPublishedPage } from "@/lib/websites";
 
-// Shared by the two public routes: /sites/[host] (subdomains and custom
-// domains, via proxy.ts) and /s/[subdomain] (path routing).
+// Shared by the two public routes: /sites/[host]/[[...slug]] (subdomains
+// and custom domains, via proxy.ts) and /s/[subdomain]/[[...slug]] (path
+// routing). A site's pages are one level deep: /<slug>.
 
-export async function publishedSiteMetadata(hostname: string): Promise<Metadata> {
-  const website = await getPublishedWebsiteByHost(hostname);
-  return { title: website?.title ?? "Sidan hittades inte" };
+/** The page slug from the route's segments: "" for the start page, null if there is no such page. */
+function pageSlug(segments: string[] | undefined) {
+  if (!segments || segments.length === 0) return "";
+  if (segments.length > 1) return null;
+  return decodeURIComponent(segments[0]).toLowerCase();
 }
 
-export async function PublishedSite({ hostname }: { hostname: string }) {
-  const website = await getPublishedWebsiteByHost(hostname);
-  if (!website) notFound();
+async function findPage(hostname: string, segments: string[] | undefined) {
+  const slug = pageSlug(segments);
+  return slug === null ? null : getPublishedPage(hostname, slug);
+}
 
+export async function publishedSiteMetadata(hostname: string, segments?: string[]): Promise<Metadata> {
+  const found = await findPage(hostname, segments);
+  if (!found) return { title: "Sidan hittades inte" };
+  // The start page is the site; other pages are "Page – Site".
+  return { title: found.page.slug ? `${found.page.title} – ${found.siteTitle}` : found.siteTitle };
+}
+
+export async function PublishedSite({
+  hostname,
+  slug,
+  basePath,
+}: {
+  hostname: string;
+  slug: string[] | undefined;
+  /** Where the site's pages live: "" on its own hostname, "/s/<subdomain>" with path routing. */
+  basePath: string;
+}) {
+  const found = await findPage(hostname, slug);
+  if (!found) notFound();
+
+  // Buttons that go to another page ("page:<id>") get its URL.
+  const metadata: PageLinkMetadata = {
+    pageHrefs: Object.fromEntries(Object.entries(found.slugs).map(([id, s]) => [id, pagePath(basePath, s)])),
+  };
   // Stored page data was sanitized against pageConfig when it was published.
-  return <Render config={pageConfig} data={website.data as unknown as PageData} />;
+  return <Render config={pageConfig} data={found.page.data} metadata={metadata} />;
 }
 
 export function PublishedSiteSkeleton() {
