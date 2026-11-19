@@ -4,13 +4,20 @@ import { createContext, type ReactNode, useContext, useEffect, useRef, useState,
 import { createPortal } from "react-dom";
 import { createPage, deletePage, updatePage } from "@/actions/website";
 import { slugify, validateSlug } from "@/lib/page/links";
+import type { BlockOutline } from "@/lib/page/outline";
 import { PAGE_TEMPLATES, type PageTemplate } from "@/lib/page/templates";
 
 // The site's pages in the editor: the page switcher in the top bar, and the
 // dialogs to add a page or change one. Each page is edited on its own
 // (/dashboard/editor?page=<id>); Publicera publishes them all.
 
-export type EditorPage = { id: string; title: string; slug: string };
+export type EditorPage = {
+  id: string;
+  title: string;
+  slug: string;
+  /** The page's blocks as last saved, so buttons can link to one of them (empty for the page being edited). */
+  blocks: BlockOutline[];
+};
 
 type PagesContextValue = {
   pageId: string;

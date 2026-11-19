@@ -22,7 +22,7 @@ import {
 import { ACCEPTED_FONT_TYPES, useFontUpload } from "@/components/page-blocks/use-upload";
 import type { Box } from "@/lib/page/box";
 import type { PageConfig } from "@/lib/page/config";
-import { linkedPageId, pageLink } from "@/lib/page/links";
+import { pageLink, parsePageLink } from "@/lib/page/links";
 import type { TextStyle } from "@/lib/page/text-style";
 import { TYPOGRAPHY_RANGES, type Typography, withTypographyDefaults } from "@/lib/page/typography";
 import {
@@ -1108,27 +1108,35 @@ function TextStyleButtons({
   ));
 }
 
-/** Where a link goes, short: "→ <page>" or "→ <block>" for this site, else nothing. */
+/** Where a link goes, short: "→ <page>", "→ <page> › <block>" or "→ <block>" for this site, else nothing. */
 function linkHint(puck: PuckApi, pages: EditorPage[], href: string) {
-  const pageId = linkedPageId(href);
-  if (pageId !== null) return `→ ${pages.find((page) => page.id === pageId)?.title ?? "borttagen sida"}`;
+  const link = parsePageLink(href);
+  if (link) {
+    const page = pages.find((p) => p.id === link.pageId);
+    if (!page) return "→ borttagen sida";
+    const block = link.blockId && page.blocks.find((b) => b.id === link.blockId);
+    return block ? `→ ${page.title} › ${block.label}` : `→ ${page.title}`;
+  }
   if (!href.startsWith("#") || href.length < 2) return undefined;
   const item = puck.getItemById(href.slice(1));
   return item ? `→ ${layerLabel(puck, item)}` : undefined;
 }
 
 /**
- * A link: an address (https://, mailto:...), another page of the site
- * ("page:<id>", turned into its URL on the published site, see
- * lib/page/links.ts) or a block on the same page ("#<block id>"; every
- * block is rendered with its id, see config.tsx).
+ * A link: an address (https://, mailto:...), another page of the site or a
+ * part of it ("page:<id>[#<block id>]", turned into its URL on the
+ * published site, see lib/page/links.ts) or a block on the same page
+ * ("#<block id>"; every block is rendered with its id, see config.tsx).
  */
 function LinkPicker({ value, ownId, onSave }: { value: string; ownId?: string; onSave: (href: string) => void }) {
   const getPuck = useGetPuck();
   usePuck((s) => s.appState.data);
   const { pageId, pages } = usePages();
+  const linked = parsePageLink(value);
+  // Each page's blocks open under it; the linked page starts open.
+  const [openPage, setOpenPage] = useState<string | null>(linked?.pageId ?? null);
   const blocks = allBlocks(getPuck()).filter((b) => b.id !== ownId);
-  const onSite = (value.startsWith("#") && value.length > 1) || linkedPageId(value) !== null;
+  const onSite = (value.startsWith("#") && value.length > 1) || linked !== null;
   const otherPages = pages.filter((page) => page.id !== pageId);
   return (
     <>
@@ -1137,18 +1145,48 @@ function LinkPicker({ value, ownId, onSave }: { value: string; ownId?: string; o
         <>
           <MenuDivider />
           <MenuHeader>Sidor</MenuHeader>
-          {otherPages.map((page) => (
-            <OptionRow
-              key={page.id}
-              label={page.title}
-              selected={value === pageLink(page.id)}
-              onSelect={() => onSave(pageLink(page.id))}
-            />
-          ))}
+          {otherPages.map((page) => {
+            const open = openPage === page.id;
+            return (
+              <div key={page.id}>
+                <div className="relative">
+                  <OptionRow
+                    label={page.title}
+                    selected={value === pageLink(page.id)}
+                    onSelect={() => onSave(pageLink(page.id))}
+                  />
+                  {page.blocks.length > 0 && (
+                    <button
+                      type="button"
+                      title={open ? "Dölj delar av sidan" : "Länka till en del av sidan"}
+                      aria-label={open ? "Dölj delar av sidan" : "Länka till en del av sidan"}
+                      aria-expanded={open}
+                      onClick={() => setOpenPage(open ? null : page.id)}
+                      className="absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900"
+                    >
+                      <Icon className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`}>
+                        <path d="m9 6 6 6-6 6" />
+                      </Icon>
+                    </button>
+                  )}
+                </div>
+                {open &&
+                  page.blocks.map((b) => (
+                    <span key={b.id} className="block" style={{ paddingLeft: (b.depth + 1) * 12 }}>
+                      <OptionRow
+                        label={b.label}
+                        selected={value === pageLink(page.id, b.id)}
+                        onSelect={() => onSave(pageLink(page.id, b.id))}
+                      />
+                    </span>
+                  ))}
+              </div>
+            );
+          })}
         </>
       )}
       <MenuDivider />
-      <MenuHeader>Del av sidan</MenuHeader>
+      <MenuHeader>Del av den här sidan</MenuHeader>
       {blocks.map((b) => (
         <span key={b.id} className="block" style={{ paddingLeft: b.depth * 12 }}>
           <OptionRow label={b.label} selected={value === `#${b.id}`} onSelect={() => onSave(`#${b.id}`)} />

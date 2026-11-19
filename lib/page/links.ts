@@ -5,27 +5,39 @@
 // address: the address can change, and it depends on how the site is
 // reached (its own hostname, or ROOT_DOMAIN/s/<subdomain>). The published
 // site turns it into a URL with the page addresses passed as Puck metadata.
+// "page:<page id>#<block id>" goes to one block on that page (every block
+// is rendered with its id, see config.tsx).
 
 const PAGE_LINK = "page:";
 
-export const pageLink = (pageId: string) => `${PAGE_LINK}${pageId}`;
+export const pageLink = (pageId: string, blockId?: string) =>
+  `${PAGE_LINK}${pageId}${blockId ? `#${blockId}` : ""}`;
+
+/** The page (and block, if any) of a "page:<id>[#<block id>]" link, or null for any other link. */
+export function parsePageLink(href: string): { pageId: string; blockId: string | null } | null {
+  if (!href.startsWith(PAGE_LINK)) return null;
+  const [pageId, blockId] = href.slice(PAGE_LINK.length).split("#", 2);
+  return { pageId, blockId: blockId || null };
+}
 
 /** The page id of a "page:<id>" link, or null for any other link. */
 export function linkedPageId(href: string) {
-  return href.startsWith(PAGE_LINK) ? href.slice(PAGE_LINK.length) : null;
+  return parsePageLink(href)?.pageId ?? null;
 }
 
-/** A well-formed link to a page of the site (ids are cuid-like). */
-export const isPageLink = (href: string) => /^page:[A-Za-z0-9_-]{1,40}$/.test(href);
+/** A well-formed link to a page of the site (ids are cuid-like), maybe to one of its blocks. */
+export const isPageLink = (href: string) => /^page:[A-Za-z0-9_-]{1,40}(?:#[A-Za-z0-9_-]{1,80})?$/.test(href);
 
 /** Passed to Puck's Render as metadata: each page's URL, by page id. */
 export type PageLinkMetadata = { pageHrefs?: Record<string, string> };
 
 /** A link as it goes in the page's HTML: page links become URLs ("#" in the editor or if the page is gone). */
 export function resolveHref(href: string, metadata: PageLinkMetadata | undefined) {
-  const pageId = linkedPageId(href);
-  if (pageId === null) return href;
-  return metadata?.pageHrefs?.[pageId] ?? "#";
+  const link = parsePageLink(href);
+  if (!link) return href;
+  const url = metadata?.pageHrefs?.[link.pageId];
+  if (!url) return "#";
+  return link.blockId ? `${url}#${link.blockId}` : url;
 }
 
 /** A page's URL path under the site's base ("" or "/s/<subdomain>"). */
