@@ -13,7 +13,10 @@ import { getPublishedPage } from "@/lib/websites";
 function pageSlug(segments: string[] | undefined) {
   if (!segments || segments.length === 0) return "";
   if (segments.length > 1) return null;
-  return decodeURIComponent(segments[0]).toLowerCase();
+  // Next.js has already decoded the segment, so it's not decoded again:
+  // "/100%25" arrives as "100%", which decodeURIComponent would throw on.
+  // Slugs are a–z, 0–9 and "-" only, so nothing else can match a page.
+  return segments[0].toLowerCase();
 }
 
 async function findPage(hostname: string, segments: string[] | undefined) {
