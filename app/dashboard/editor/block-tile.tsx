@@ -109,7 +109,7 @@ export function BlockTile({ name }: { name: string; children: ReactNode }) {
         }
       }}
       title="Klicka för att lägga till, eller dra in i sidan"
-      className="mb-2 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 bg-white p-2.5 text-left shadow-xs transition hover:-translate-y-px hover:border-violet-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-500"
+      className="mb-2 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 bg-(--editor-surface) p-2.5 text-left shadow-xs transition hover:-translate-y-px hover:border-violet-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-500"
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
         <BlockIcon name={name} />

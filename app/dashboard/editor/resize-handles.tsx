@@ -216,7 +216,7 @@ export function ResizeHandles({ doc }: { doc?: Document }) {
           )}
           {readout && (
             <span
-              className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold whitespace-nowrap text-white shadow"
+              className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-zinc-950 px-2 py-1 text-xs font-semibold whitespace-nowrap text-white shadow"
               style={{ left: box.left + box.width / 2, top: Math.max(0, box.top - 30) }}
             >
               {readout}
@@ -289,7 +289,7 @@ function Grip({ x, y, shape, filled, ...rest }: GripProps) {
       {...rest}
       style={{ left: x, top: y, touchAction: "none" }}
       className={`absolute -translate-x-1/2 -translate-y-1/2 border-2 border-violet-600 shadow-md transition-transform hover:scale-125 ${
-        filled ? "bg-violet-600 ring-2 ring-white" : "bg-white"
+        filled ? "bg-violet-600 ring-2 ring-white" : "bg-(--editor-surface)"
       } ${gripShapes[shape]}`}
     />
   );

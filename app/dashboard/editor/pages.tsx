@@ -114,7 +114,7 @@ export function PageSwitcher({ siteUrl }: { siteUrl: string }) {
             role="menu"
             aria-label="Sidor"
             style={{ left: position.left, top: position.top }}
-            className="fixed z-1000 max-h-[calc(100vh-80px)] w-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 text-sm text-zinc-800 shadow-2xl"
+            className="fixed z-1000 max-h-[calc(100vh-80px)] w-72 overflow-y-auto rounded-xl border border-zinc-200 bg-(--editor-surface) p-1.5 text-sm text-zinc-800 shadow-2xl"
           >
             <p className="px-2.5 pt-1 pb-1.5 text-xs font-semibold tracking-wide text-zinc-400 uppercase">Sidor</p>
             {pages.map((page) => (
@@ -399,7 +399,7 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
       className="fixed inset-0 z-1000 flex items-center justify-center bg-zinc-950/60 p-4 backdrop-blur-sm"
       onPointerDown={(event) => event.target === event.currentTarget && onClose()}
     >
-      <div className="max-h-full w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 text-zinc-900 shadow-2xl">
+      <div className="max-h-full w-full max-w-lg overflow-y-auto rounded-2xl bg-(--editor-surface) p-6 text-zinc-900 shadow-2xl">
         <h2 className="mb-4 text-lg font-semibold">{title}</h2>
         {children}
       </div>

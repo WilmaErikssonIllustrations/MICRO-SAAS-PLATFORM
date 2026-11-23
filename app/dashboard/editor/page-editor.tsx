@@ -146,6 +146,8 @@ export function PageEditor({
 
   return (
     <PagesContext.Provider value={{ pageId, pages, saveCurrent, goToPage }}>
+      {/* Turns on the editor's dark theme (editor-theme.css); takes no space. */}
+      <div data-editor-ui hidden />
       <Puck
         config={pageConfig}
         data={initialData}

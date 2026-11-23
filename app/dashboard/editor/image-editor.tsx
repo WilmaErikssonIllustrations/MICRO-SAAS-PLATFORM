@@ -90,10 +90,10 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
       className="fixed inset-0 z-1000 flex items-center justify-center bg-zinc-950/60 p-4 backdrop-blur-sm"
       onPointerDown={(event) => event.target === event.currentTarget && onClose()}
     >
-      <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl md:flex-row">
+      <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-(--editor-surface) shadow-2xl md:flex-row">
         <div className="flex min-h-64 flex-1 items-center justify-center bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-size-[20px_20px] p-6">
           <div className="flex w-full flex-col items-center gap-3">
-            <div role="tablist" aria-label="Förhandsvisning" className="flex gap-1 rounded-lg bg-white/90 p-1 text-sm shadow-sm">
+            <div role="tablist" aria-label="Förhandsvisning" className="flex gap-1 rounded-lg bg-(--editor-surface)/90 p-1 text-sm shadow-sm">
               {(Object.keys(DEVICES) as Device[]).map((key) => (
                 <button
                   key={key}
@@ -140,7 +140,7 @@ function ImageEditorDialog({ target, onClose }: { target: ImageEditorTarget; onC
                 role="tab"
                 aria-selected={tab === key}
                 onClick={() => setTab(key)}
-                className={`flex-1 rounded-md px-2 py-1.5 font-medium ${tab === key ? "bg-white text-violet-700 shadow-sm" : "text-zinc-600 hover:text-zinc-900"}`}
+                className={`flex-1 rounded-md px-2 py-1.5 font-medium ${tab === key ? "bg-(--editor-surface) text-violet-700 shadow-sm" : "text-zinc-600 hover:text-zinc-900"}`}
               >
                 {TABS[key]}
               </button>

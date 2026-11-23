@@ -35,7 +35,7 @@ export function EditorTopBar({ onSave, onPublish, ...status }: EditorTopBarProps
   return (
     <header
       style={{ gridArea: "header" }}
-      className="flex h-14 items-center gap-3 border-b border-zinc-200 bg-white px-3 text-zinc-900"
+      className="flex h-14 items-center gap-3 border-b border-zinc-200 bg-(--editor-surface) px-3 text-zinc-900"
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {/* A full page load, not <Link>: see the note in app/dashboard/page.tsx. */}
@@ -77,7 +77,7 @@ export function EditorTopBar({ onSave, onPublish, ...status }: EditorTopBarProps
           onClick={onSave}
           disabled={!unsaved || busy}
           title="Spara utan att publicera (Ctrl+S)"
-          className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:cursor-default disabled:opacity-50"
+          className="rounded-lg border border-zinc-200 bg-(--editor-surface) px-3.5 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:cursor-default disabled:opacity-50"
         >
           Spara
         </button>

@@ -26,13 +26,91 @@
   --puck-radius-l: 12px;
 }
 
+/* Panels, menus and dialogs: white, or dark with the theme below. */
+:root {
+  --editor-surface: #ffffff;
+}
+
 /*
-  The editor is always light. globals.css switches the page text to a light
-  color in dark mode, which Puck's panels inherit on their white background.
+  Dark editor, like the front page and the dashboard. Scoped to the editor's
+  document (page-editor.tsx renders [data-editor-ui]): Puck copies these
+  styles into the preview iframe, and the page in it keeps its own colors.
+
+  The editor's own UI is built with Tailwind's zinc and violet scales, so
+  this flips them (light <-> dark) instead of restyling every class:
+  bg-zinc-100 becomes a dark hover, text-zinc-900 light text, and so on.
+  White stays white (text on violet buttons); panels use --editor-surface.
+  zinc-950 stays dark too: it's the backdrop behind dialogs.
 */
-html body {
-  background: #ffffff;
-  color: #171717;
+body:has([data-editor-ui]) {
+  color-scheme: dark;
+  background: #0b0b0f;
+  color: #f4f4f7;
+
+  --editor-surface: #17171c;
+
+  --color-zinc-50: #1d1d23;
+  --color-zinc-100: #26262d;
+  --color-zinc-200: #303038;
+  --color-zinc-300: #42424b;
+  --color-zinc-400: #7a7a85;
+  --color-zinc-500: #9a9aa5;
+  --color-zinc-600: #b4b4bd;
+  --color-zinc-700: #cfcfd6;
+  --color-zinc-800: #e4e4ea;
+  --color-zinc-900: #f4f4f7;
+
+  /* Soft violet backgrounds become deep violet; violet text gets lighter.
+     500 and 600 (buttons) stay; 700 is also their hover, so it stays violet. */
+  --color-violet-50: #251d3a;
+  --color-violet-100: #322753;
+  --color-violet-200: #43357a;
+  --color-violet-300: #6d28d9;
+  --color-violet-700: #8b5cf6;
+  --color-violet-800: #c4b5fd;
+  --color-violet-900: #ddd6fe;
+
+  --color-red-50: #3a1a1f;
+  --color-red-600: #f87171;
+  --color-red-700: #ef4444;
+  --color-green-700: #4ade80;
+  --color-amber-700: #fbbf24;
+
+  /* Puck's own panels (fields, outline, drawer) and the desk around the page. */
+  --puck-color-grey-01: #fafafa;
+  --puck-color-grey-02: #ececf1;
+  --puck-color-grey-03: #cfcfd6;
+  --puck-color-grey-04: #b4b4bd;
+  --puck-color-grey-05: #9a9aa5;
+  --puck-color-grey-06: #7a7a85;
+  --puck-color-grey-07: #5b5b66;
+  --puck-color-grey-08: #42424b;
+  --puck-color-grey-09: #303038;
+  --puck-color-grey-10: #26262d;
+  --puck-color-grey-11: #1d1d23;
+  --puck-color-grey-12: #141418;
+  /* Puck's named colors are worked out on :root from the greys, so they're
+     set here too (a grey changed on body doesn't reach them). */
+  --puck-color-surface: #17171c;
+  --puck-color-surface-muted: #1d1d23;
+  --puck-color-surface-subtle: #0b0b0f;
+  --puck-color-surface-inverse: #fafafa;
+  --puck-color-border: #303038;
+  --puck-color-border-hover: #5b5b66;
+  --puck-color-border-muted: #26262d;
+  --puck-color-border-inverse: #9a9aa5;
+  --puck-color-text: #f4f4f7;
+  --puck-color-text-secondary: #cfcfd6;
+  --puck-color-text-muted: #9a9aa5;
+  --puck-color-text-subtle: #7a7a85;
+  --puck-color-text-inverse: #ffffff;
+  --puck-color-interactive-neutral-hover: #26262d;
+  --puck-color-bg-disabled: #42424b;
+  --puck-color-text-disabled: #7a7a85;
+  --puck-color-interactive-subtle: #322753;
+  --puck-color-interactive-soft: #251d3a;
+  --puck-color-interactive-soft-hover: #322753;
+  --puck-color-overlay-backdrop: rgb(0 0 0 / 0.7);
 }
 
 /*

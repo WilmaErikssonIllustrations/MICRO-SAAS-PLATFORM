@@ -89,7 +89,7 @@ function AddBlockButton() {
             role="menu"
             aria-label="Lägg till block"
             style={{ left: position.left, top: position.top }}
-            className={`fixed z-1000 max-h-[calc(100vh-80px)] w-72 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-2 text-zinc-900 shadow-2xl ${
+            className={`fixed z-1000 max-h-[calc(100vh-80px)] w-72 overflow-y-auto rounded-2xl border border-zinc-200 bg-(--editor-surface) p-2 text-zinc-900 shadow-2xl ${
               position.left === 8 ? "-translate-y-full" : ""
             }`}
           >

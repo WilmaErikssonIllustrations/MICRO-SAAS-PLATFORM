@@ -271,7 +271,7 @@ function NameInput({
         if (event.key === "Escape") onDone(null);
       }}
       onBlur={() => onDone(name)}
-      className="h-7 min-w-0 flex-1 rounded-md border border-violet-400 bg-white px-1.5 text-sm text-zinc-900 outline-none"
+      className="h-7 min-w-0 flex-1 rounded-md border border-violet-400 bg-(--editor-surface) px-1.5 text-sm text-zinc-900 outline-none"
     />
   );
 }
@@ -312,7 +312,7 @@ function RowButton({ title, onClick, children }: { title: string; onClick: () =>
         event.stopPropagation();
         onClick();
       }}
-      className="flex size-7 items-center justify-center rounded-md text-zinc-500 hover:bg-white hover:text-zinc-900"
+      className="flex size-7 items-center justify-center rounded-md text-zinc-500 hover:bg-(--editor-surface) hover:text-zinc-900"
     >
       <SmallIcon>{children}</SmallIcon>
     </button>

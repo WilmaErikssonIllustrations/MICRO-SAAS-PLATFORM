@@ -79,7 +79,7 @@ export function Menu({
           ref={panelRef}
           role="menu"
           style={{ width: MENU_WIDTH }}
-          className="rounded-xl border border-zinc-200 bg-white p-1.5 text-sm text-zinc-800 shadow-2xl"
+          className="rounded-xl border border-zinc-200 bg-(--editor-surface) p-1.5 text-sm text-zinc-800 shadow-2xl"
         >
           {children}
         </div>
@@ -210,7 +210,7 @@ function Dropdown({ anchor, scrollable, children }: { anchor: DOMRect; scrollabl
         role="menu"
         data-toolbar-dropdown
         style={{ left, top: anchor.bottom + 6, width: MENU_WIDTH }}
-        className={`fixed z-1000 rounded-xl border border-zinc-200 bg-white p-1.5 text-sm text-zinc-800 shadow-2xl ${
+        className={`fixed z-1000 rounded-xl border border-zinc-200 bg-(--editor-surface) p-1.5 text-sm text-zinc-800 shadow-2xl ${
           scrollable ? "max-h-[70vh] overflow-y-auto" : ""
         }`}
         onClick={(event) => event.stopPropagation()}
@@ -313,7 +313,7 @@ function Submenu({
         ref={ref}
         role="menu"
         style={{ width: MENU_WIDTH }}
-        className={`absolute -top-1.5 z-10 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ${
+        className={`absolute -top-1.5 z-10 rounded-xl border border-zinc-200 bg-(--editor-surface) p-1.5 shadow-2xl ${
           scrollable ? "max-h-[70vh] overflow-y-auto" : ""
         } ${opensLeft(left, depth) ? "right-full mr-1.5" : "left-full ml-1.5"}`}
       >
@@ -624,7 +624,7 @@ export function NumberUnitInput({
               aria-checked={current === u.value}
               onClick={() => setCurrent(u.value)}
               className={`h-8 min-w-9 rounded-md px-2 text-sm font-medium ${
-                current === u.value ? "bg-white text-violet-800 shadow-sm" : "text-zinc-600 hover:text-zinc-900"
+                current === u.value ? "bg-(--editor-surface) text-violet-800 shadow-sm" : "text-zinc-600 hover:text-zinc-900"
               }`}
             >
               {u.label}
