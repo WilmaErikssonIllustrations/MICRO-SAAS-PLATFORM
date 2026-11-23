@@ -9,7 +9,7 @@ type FormFieldProps = {
 };
 
 const inputClassName =
-  "block w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-white shadow-sm placeholder:text-zinc-500 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400 aria-[invalid=true]:border-red-400";
+  "block w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-white shadow-sm placeholder:text-zinc-500 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400 autofill:shadow-[inset_0_0_0_1000px_#1c1b24] autofill:[-webkit-text-fill-color:#fff] autofill:[caret-color:#fff] aria-[invalid=true]:border-red-400";
 
 export function FormField({ id, label, hint, error, children }: FormFieldProps) {
   return (

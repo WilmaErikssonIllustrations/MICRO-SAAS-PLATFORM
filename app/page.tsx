@@ -12,7 +12,7 @@ const FEATURES = [
 
 export default function Home() {
   return (
-    <main className="relative isolate flex flex-1 flex-col items-center justify-center overflow-hidden bg-zinc-950 px-6 py-24 text-center text-white">
+    <main className="relative isolate flex flex-1 flex-col items-center justify-center overflow-hidden bg-zinc-950 px-6 py-24 text-center text-white scheme-dark">
       <AuroraBackdrop />
 
       <p className="rounded-full border border-white/15 bg-white/5 px-3.5 py-1 text-sm font-medium text-violet-200 backdrop-blur">

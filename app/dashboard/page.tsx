@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default function DashboardPage() {
   return (
     // The front page's dark animated backdrop, with glass cards.
-    <div className="relative isolate flex-1 bg-zinc-950 text-white">
+    <div className="relative isolate flex-1 bg-zinc-950 text-white scheme-dark">
       <AuroraBackdrop />
       <header className="border-b border-white/10 bg-zinc-950/40 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-4">
