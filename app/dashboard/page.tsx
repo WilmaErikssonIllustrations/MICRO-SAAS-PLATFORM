@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { domainToUnicode } from "node:url";
 import { Suspense } from "react";
 import { signOut } from "@/actions/auth";
 import { requireUser } from "@/lib/current-user";
@@ -68,7 +69,7 @@ async function Overview() {
   const pages = await listPages(website.id);
 
   const publicUrls = [platformSiteUrl(website.subdomain)];
-  if (website.customDomain) publicUrls.push(`https://${website.customDomain}`);
+  if (website.customDomain) publicUrls.push(`https://${domainToUnicode(website.customDomain)}`);
 
   return (
     <div className="space-y-8">
@@ -108,7 +109,8 @@ async function Overview() {
         addressSuffix={usesPathRouting() ? "" : `.${getRootDomain()}`}
         cnameTarget={getCustomDomainTarget()}
         subdomain={website.subdomain}
-        customDomain={website.customDomain}
+        // Shown as typed: www.blåbär.se, not its DNS form (xn--...).
+        customDomain={website.customDomain && domainToUnicode(website.customDomain)}
       />
     </div>
   );

@@ -4,6 +4,7 @@ import { resolve4, resolveCname } from "node:dns/promises";
 import { refresh } from "next/cache";
 import { requireUser } from "@/lib/current-user";
 import {
+  domainVariants,
   getCustomDomainTarget,
   normalizeDomain,
   validateCustomDomain,
@@ -45,7 +46,8 @@ export async function saveSiteSettings(
   }
   if (customDomain && !errors.customDomain) {
     const taken = await prisma.website.findFirst({
-      where: { customDomain, NOT: { id: website.id } },
+      // www.foo.se and foo.se are the same site, so either one counts.
+      where: { customDomain: { in: domainVariants(customDomain) }, NOT: { id: website.id } },
       select: { id: true },
     });
     if (taken) errors.customDomain = "Domänen används redan av en annan hemsida.";

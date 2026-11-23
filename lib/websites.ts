@@ -1,6 +1,6 @@
 import "server-only";
 import { cacheLife, cacheTag, updateTag } from "next/cache";
-import { hostTag, matchHost, suggestSubdomain, websiteHostnames } from "@/lib/domains";
+import { domainVariants, hostTag, matchHost, suggestSubdomain, websiteHostnames } from "@/lib/domains";
 import type { Prisma } from "@/generated/prisma/client";
 import { type PageData, isEmptyPage, starterPage } from "@/lib/page/config";
 import type { CustomFont } from "@/lib/page/fonts";
@@ -83,7 +83,8 @@ export async function getPublishedPage(hostname: string, slug: string) {
     where:
       match.kind === "subdomain"
         ? { subdomain: match.subdomain, published: true }
-        : { customDomain: match.domain, published: true },
+        : // www.foo.se and foo.se are the same site.
+          { customDomain: { in: domainVariants(match.domain) }, published: true },
     include: { pages: { select: { id: true, slug: true, title: true, data: true } } },
   });
   if (!website) return null;

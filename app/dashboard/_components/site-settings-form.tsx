@@ -116,7 +116,7 @@ function DnsInstructions({ domain, target }: { domain: string; target: string })
       </dl>
       <p className="text-zinc-400">
         För en domän utan www (t.ex. mittforetag.se) använder du en ALIAS-/ANAME-post om
-        leverantören stödjer det.
+        leverantören stödjer det. Hemsidan visas både med och utan www när båda pekar hit.
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <button

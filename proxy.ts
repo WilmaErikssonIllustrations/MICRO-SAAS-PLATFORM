@@ -1,6 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { matchHost, usesPathRouting } from "@/lib/domains";
+import { isHostname, matchHost, usesPathRouting } from "@/lib/domains";
 
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
@@ -11,6 +11,8 @@ export function proxy(request: NextRequest) {
   // the internal /sites/[host] route.
   if (match.kind !== "platform") {
     const hostname = host.replace(/:\d+$/, "").toLowerCase();
+    // Only real hostnames go into the internal path (no "/" or "..").
+    if (!isHostname(hostname)) return NextResponse.rewrite(new URL("/404", request.url));
     return NextResponse.rewrite(new URL(`/sites/${hostname}${pathname}`, request.url));
   }
 

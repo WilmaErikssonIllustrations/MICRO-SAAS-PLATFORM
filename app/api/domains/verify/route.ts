@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { matchHost } from "@/lib/domains";
+import { domainVariants, isHostname, matchHost } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
 
 // "Ask" endpoint for on-demand TLS (e.g. Caddy's `on_demand_tls { ask ... }`):
@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 // are issued for customer domains but not for arbitrary hosts.
 export async function GET(request: NextRequest) {
   const domain = request.nextUrl.searchParams.get("domain")?.toLowerCase() ?? "";
+  // Anything that isn't a hostname (e.g. with a null byte, which the
+  // database refuses) can't be a site.
+  if (!isHostname(domain)) return new Response(null, { status: 404 });
   const match = matchHost(domain);
 
   if (match.kind === "platform") return new Response(null, { status: 200 });
@@ -15,7 +18,7 @@ export async function GET(request: NextRequest) {
     where:
       match.kind === "subdomain"
         ? { subdomain: match.subdomain }
-        : { customDomain: match.domain },
+        : { customDomain: { in: domainVariants(match.domain) } },
     select: { id: true },
   });
 

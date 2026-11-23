@@ -60,12 +60,26 @@ export function subdomainHostname(subdomain: string) {
   return `${subdomain}.${stripPort(getRootDomain())}`;
 }
 
+/**
+ * A custom domain with and without "www.": a site on www.foo.se answers on
+ * foo.se too (and the other way round), when its DNS points here. Only
+ * for "www." and two-label domains, so shop.foo.se stays on its own.
+ */
+export function domainVariants(domain: string) {
+  if (domain.startsWith("www.")) return [domain, domain.slice(4)];
+  if (domain.split(".").length === 2) return [domain, `www.${domain}`];
+  return [domain];
+}
+
 /** All hostnames a website answers on, without ports. */
 export function websiteHostnames(site: { subdomain: string; customDomain: string | null }) {
   const hostnames = [subdomainHostname(site.subdomain)];
-  if (site.customDomain) hostnames.push(site.customDomain);
+  if (site.customDomain) hostnames.push(...domainVariants(site.customDomain));
   return hostnames;
 }
+
+/** A plausible hostname (letters, digits, dots and dashes), e.g. from a Host header. */
+export const isHostname = (value: string) => /^[a-z0-9.-]{1,253}$/.test(value);
 
 /** Public URL of a website on the platform (subdomain or /s/ path). */
 export function platformSiteUrl(subdomain: string) {
@@ -93,14 +107,24 @@ export function validateSubdomain(value: string): string | null {
   return null;
 }
 
-/** Lowercases and strips protocol, path and trailing dot from user input. */
+/**
+ * Lowercases and strips protocol, path and trailing dot from user input.
+ * Domains with å, ä, ö... become their DNS (punycode) form, which is what
+ * browsers send: www.blåbär.se -> www.xn--blbr-noae.se.
+ */
 export function normalizeDomain(input: string) {
-  return input
+  const domain = input
     .trim()
     .toLowerCase()
     .replace(/^https?:\/\//, "")
     .replace(/[/?#].*$/, "")
     .replace(/\.$/, "");
+  if (/^[\x00-\x7f]*$/.test(domain)) return domain;
+  try {
+    return new URL(`http://${domain}`).hostname;
+  } catch {
+    return domain;
+  }
 }
 
 /** Returns an error message, or null if the custom domain is valid. */
@@ -110,6 +134,8 @@ export function validateCustomDomain(domain: string): string | null {
   if (domain === root || domain.endsWith(`.${root}`)) {
     return "Använd adressfältet ovan för plattformens egna adresser.";
   }
+  // Treated as the platform (preview deployments), so never served as a site.
+  if (domain.endsWith(".vercel.app")) return "Den domänen kan inte användas. Ange din egen domän.";
   return null;
 }
 
