@@ -28,19 +28,19 @@ const COPY = {
 const initialState: AuthFormState = { error: null, email: "" };
 
 const inputClassName =
-  "block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900";
+  "block w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-white shadow-sm placeholder:text-zinc-500 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400";
 
 export function AuthForm({ mode }: { mode: keyof typeof COPY }) {
   const copy = COPY[mode];
   const [state, formAction, pending] = useActionState(copy.action, initialState);
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+    <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 shadow-2xl shadow-black/30 backdrop-blur-xl p-8">
       <h1 className="text-2xl font-semibold tracking-tight">{copy.title}</h1>
 
       <form action={formAction} className="mt-6 space-y-4">
         <div className="space-y-1.5">
-          <label htmlFor="email" className="block text-sm font-medium text-zinc-800">
+          <label htmlFor="email" className="block text-sm font-medium text-zinc-200">
             E-post
           </label>
           <input
@@ -55,7 +55,7 @@ export function AuthForm({ mode }: { mode: keyof typeof COPY }) {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="password" className="block text-sm font-medium text-zinc-800">
+          <label htmlFor="password" className="block text-sm font-medium text-zinc-200">
             Lösenord
           </label>
           <input
@@ -67,11 +67,11 @@ export function AuthForm({ mode }: { mode: keyof typeof COPY }) {
             required
             className={inputClassName}
           />
-          {mode === "sign-up" && <p className="text-sm text-zinc-500">Minst 8 tecken.</p>}
+          {mode === "sign-up" && <p className="text-sm text-zinc-400">Minst 8 tecken.</p>}
         </div>
 
         {state.error && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-400">
             {state.error}
           </p>
         )}
@@ -79,15 +79,15 @@ export function AuthForm({ mode }: { mode: keyof typeof COPY }) {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700 disabled:opacity-60"
+          className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/20 transition hover:from-violet-400 hover:to-fuchsia-400 disabled:opacity-60"
         >
           {pending ? copy.pending : copy.submit}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-zinc-600">
+      <p className="mt-6 text-center text-sm text-zinc-400">
         {copy.switchText}{" "}
-        <Link href={copy.switchLink.href} className="font-medium text-zinc-900 underline">
+        <Link href={copy.switchLink.href} className="font-medium text-violet-300 underline underline-offset-2 hover:text-violet-200">
           {copy.switchLink.label}
         </Link>
       </p>

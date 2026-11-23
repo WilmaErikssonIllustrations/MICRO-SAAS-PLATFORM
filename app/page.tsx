@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { AuroraBackdrop } from "@/components/aurora-backdrop";
 
-// The platform's front page: an animated gradient backdrop (see .aurora in
-// globals.css) behind the pitch and the sign-up buttons.
+// The platform's front page: the pitch and the sign-up buttons on the
+// animated backdrop.
 
 const FEATURES = [
   { title: "Dra och släpp", text: "Bygg sidan med rubriker, bilder, knappar och kolumner direkt på sidan." },
@@ -12,7 +13,7 @@ const FEATURES = [
 export default function Home() {
   return (
     <main className="relative isolate flex flex-1 flex-col items-center justify-center overflow-hidden bg-zinc-950 px-6 py-24 text-center text-white">
-      <Backdrop />
+      <AuroraBackdrop />
 
       <p className="rounded-full border border-white/15 bg-white/5 px-3.5 py-1 text-sm font-medium text-violet-200 backdrop-blur">
         Ingen kod behövs
@@ -50,17 +51,5 @@ export default function Home() {
         ))}
       </ul>
     </main>
-  );
-}
-
-/** Slowly drifting colored glows and a faint grid; still for people who prefer less motion. */
-function Backdrop() {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-      <div className="aurora aurora-1" />
-      <div className="aurora aurora-2" />
-      <div className="aurora aurora-3" />
-      <div className="landing-grid absolute inset-0" />
-    </div>
   );
 }
