@@ -12,9 +12,20 @@ const ERROR_MESSAGES: Record<string, string> = {
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Det finns redan ett konto med den e-postadressen.",
   INVALID_EMAIL_OR_PASSWORD: "Fel e-post eller lösenord.",
   INVALID_EMAIL: "Ange en giltig e-postadress.",
+  VALIDATION_ERROR: "Kontrollera e-postadressen och lösenordet.",
   PASSWORD_TOO_SHORT: "Lösenordet måste vara minst 8 tecken.",
   PASSWORD_TOO_LONG: "Lösenordet är för långt.",
 };
+
+// Checked here as well as by Better Auth: its own check throws a validation
+// error that isn't an APIError, which would show "Något gick fel".
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL = 254;
+
+/** An error message for the email address, or null when it looks fine. */
+function emailError(email: string) {
+  return EMAIL.test(email) && email.length <= MAX_EMAIL ? null : ERROR_MESSAGES.INVALID_EMAIL;
+}
 
 function readCredentials(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -23,16 +34,19 @@ function readCredentials(formData: FormData) {
 }
 
 function toErrorState(error: unknown, email: string): AuthFormState {
-  if (error instanceof APIError) {
-    const code = typeof error.body?.code === "string" ? error.body.code : "";
-    return { error: ERROR_MESSAGES[code] ?? error.message, email };
-  }
+  // Better Auth's errors carry a code in `body`; not all of them are APIErrors.
+  const body = error instanceof APIError ? error.body : (error as { body?: { code?: unknown } } | null)?.body;
+  const code = typeof body?.code === "string" ? body.code : "";
+  if (ERROR_MESSAGES[code]) return { error: ERROR_MESSAGES[code], email };
+  if (error instanceof APIError) return { error: error.message, email };
   console.error("Auth request failed", error);
   return { error: "Något gick fel. Försök igen.", email };
 }
 
 export async function signUp(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const { email, password } = readCredentials(formData);
+  const invalid = emailError(email);
+  if (invalid) return { error: invalid, email };
 
   try {
     await auth.api.signUpEmail({
@@ -50,6 +64,8 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
 
 export async function signIn(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const { email, password } = readCredentials(formData);
+  // A malformed address can't have an account: same message as a wrong password.
+  if (emailError(email)) return { error: ERROR_MESSAGES.INVALID_EMAIL_OR_PASSWORD, email };
 
   try {
     await auth.api.signInEmail({
